@@ -227,7 +227,7 @@
     <h1>Connect 4</h1>
     <div id="controls">
         <label>AI Depth:</label>
-        <input type="number" id="search-depth" min="1" max="10" value="8" style="width: 50px;">
+        <input type="number" id="search-depth" min="1" max="15" value="8" style="width: 50px;">
         <button id="reset-game" style="display:none;">Reset Game</button>
     </div>
     <div id="message"></div>
@@ -237,6 +237,7 @@
         const COLS = 7;
         const PLAYER_PIECE = 1;
         const AI_PIECE = 2;
+        const MAX_DEPTH = 15; // Max depth for AI search
         let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
         let currentPlayer;
         let gameActive = false;
@@ -289,7 +290,7 @@
             gameActive = false; // Prevent any input during AI turn
             // Get user-defined depth
             const depthInput = document.getElementById('search-depth');
-            const depth = Math.max(1, Math.min(10, parseInt(depthInput.value) || 5));
+            const depth = Math.max(1, Math.min(MAX_DEPTH, parseInt(depthInput.value) || 5));
             const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, PLAYER_PIECE, AI_PIECE);
             const row = getNextOpenRow(col);
             if (row !== null) {
