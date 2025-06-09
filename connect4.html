@@ -227,7 +227,7 @@
     <h1>Connect 4</h1>
     <div id="controls">
         <label>AI Depth:</label>
-        <input type="number" id="search-depth" min="1" max="15" value="8" style="width: 50px;">
+        <input type="number" id="search-depth" min="1" max="15" value="10" style="width: 50px;">
         <button id="reset-game" style="display:none;">Reset Game</button>
     </div>
     <div id="message"></div>
@@ -288,6 +288,10 @@
         } function aiMove() {
             if (!gameActive || currentPlayer !== AI_PIECE) return;
             gameActive = false; // Prevent any input during AI turn
+            
+            // Clear transposition table for new search
+            clearTranspositionTable();
+            
             // Get user-defined depth
             const depthInput = document.getElementById('search-depth');
             const depth = Math.max(1, Math.min(MAX_DEPTH, parseInt(depthInput.value) || 5));
@@ -441,6 +445,26 @@
         document.getElementById('start-modal').style.display = 'flex';
 
         // --- AI Logic (Translated from Python) ---
+        const transpositionTable = new Map();
+        const MAX_TABLE_SIZE = 100000; // Limit table size to prevent memory issues
+
+        function clearTranspositionTable() {
+            transpositionTable.clear();
+        }
+
+        function getBoardHash(board) {
+            return board.map(row => row.join('')).join('');
+        }
+
+        function addToTranspositionTable(key, entry) {
+            if (transpositionTable.size >= MAX_TABLE_SIZE) {
+                // Clear oldest entries (simple strategy)
+                const keysToDelete = Array.from(transpositionTable.keys()).slice(0, MAX_TABLE_SIZE / 2);
+                keysToDelete.forEach(k => transpositionTable.delete(k));
+            }
+            transpositionTable.set(key, entry);
+        }
+
         function count_nb(arr, value) {
             return arr.reduce((count, x) => count + (x === value), 0);
         }
@@ -585,15 +609,45 @@
         }
 
         function alphabeta(node, depth, alpha, beta, max_player, player, ai_player) {
+            // Check transposition table
+            const boardHash = getBoardHash(node);
+            const tableKey = `${boardHash}-${depth}-${max_player}`;
+            
+            if (transpositionTable.has(tableKey)) {
+                const cached = transpositionTable.get(tableKey);
+                if (cached.depth >= depth) {
+                    if (cached.type === 'exact') {
+                        return [cached.bestMove, cached.value];
+                    } else if (cached.type === 'lowerbound' && cached.value >= beta) {
+                        return [cached.bestMove, cached.value];
+                    } else if (cached.type === 'upperbound' && cached.value <= alpha) {
+                        return [cached.bestMove, cached.value];
+                    }
+                }
+            }
+
             const winner = check_winner_sim(node);
             if (winner !== 0) {
-                if (winner === ai_player) return [null, 1000000000 + depth]; // Prioritize shortest win
-                if (winner === player) return [null, -1000000000 - depth]; // Avoid shortest loss
-                return [null, 0];
+                const value = winner === ai_player ? 1000000000 + depth : 
+                            winner === player ? -1000000000 - depth : 0;
+                addToTranspositionTable(tableKey, {
+                    bestMove: null,
+                    value: value,
+                    depth: depth,
+                    type: 'exact'
+                });
+                return [null, value];
             }
             if (depth === 0) {
-                return [null, value_fn(node, ai_player)];
-            }            if (max_player) {
+                const value = value_fn(node, ai_player);
+                addToTranspositionTable(tableKey, {
+                    bestMove: null,
+                    value: value,
+                    depth: depth,
+                    type: 'exact'
+                });
+                return [null, value];
+            }if (max_player) {
                 let best_value = -Infinity; let best_action = 3;
                 const valid_actions = get_valid_actions(node);
                 const ordered_moves = orderMoves(node, valid_actions, ai_player);
@@ -605,9 +659,25 @@
                         best_value = score;
                         best_action = action;
                     }
-                    alpha = Math.max(alpha, best_value);
-                    if (alpha >= beta) break; // Prune
+                    alpha = Math.max(alpha, best_value);                if (alpha >= beta) {
+                        addToTranspositionTable(tableKey, {
+                            bestMove: best_action,
+                            value: best_value,
+                            depth: depth,
+                            type: 'lowerbound'
+                        });
+                        break; // Prune
+                    }
                 }
+                
+                // Store the final result
+                addToTranspositionTable(tableKey, {
+                    bestMove: best_action,
+                    value: best_value,
+                    depth: depth,
+                    type: best_value <= alpha ? 'upperbound' : 
+                          best_value >= beta ? 'lowerbound' : 'exact'
+                });
                 return [best_action, best_value];
             } else {
                 let worst_value = Infinity; let worst_action = 3;
