@@ -197,9 +197,6 @@
     </div>
     <h1>Connect 4</h1>
     <div id="controls">
-        <label>Who starts?</label>
-        <button id="player-first">Player</button>
-        <button id="ai-first">AI</button>
         <label>AI Depth:</label>
         <input type="number" id="search-depth" min="1" max="10" value="5" style="width: 50px;">
         <button id="reset-game" style="display:none;">Reset Game</button>
@@ -216,8 +213,6 @@
         let gameActive = false;
         const gameBoard = document.getElementById('game-board');
         const message = document.getElementById('message');
-        const playerFirstBtn = document.getElementById('player-first');
-        const aiFirstBtn = document.getElementById('ai-first');
         const resetBtn = document.getElementById('reset-game');
 
         function createBoard() {
@@ -366,26 +361,20 @@
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             createBoard();
             gameActive = true;
-            playerFirstBtn.style.display = 'inline-block';
-            aiFirstBtn.style.display = 'inline-block';
             resetBtn.style.display = 'none';
             message.textContent = '';
             currentPlayer = playerStart;
             if (currentPlayer === AI_PIECE) {
-                 message.textContent = "AI's turn";
+                message.textContent = "AI's turn";
                 setTimeout(aiMove, 500);
             } else {
-                 message.textContent = "Your turn";
+                message.textContent = "Your turn";
             }
         }
 
-        playerFirstBtn.addEventListener('click', () => startGame(PLAYER_PIECE));
-        aiFirstBtn.addEventListener('click', () => startGame(AI_PIECE));
         resetBtn.addEventListener('click', () => {
             const startModal = document.getElementById('start-modal');
             startModal.style.display = 'flex';
-            playerFirstBtn.style.display = 'inline-block';
-            aiFirstBtn.style.display = 'inline-block';
             resetBtn.style.display = 'none';
             message.textContent = '';
             createBoard();
@@ -401,10 +390,6 @@
             document.getElementById('start-modal').style.display = 'none';
             startGame(AI_PIECE);
         });
-
-        // Hide original player/AI buttons since we're using the modal
-        playerFirstBtn.style.display = 'none';
-        aiFirstBtn.style.display = 'none';
 
         createBoard();
 
