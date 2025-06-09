@@ -5,9 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connect 4</title>
-    <style>
+    <style>        html {
+            font-size: 16px;
+        }
+
         :root {
-            --board-width: min(98vw, 90vh, 900px);
+            --max-board-size: 900px;
+            --board-width: min(98vw, 90vh, var(--max-board-size));
             --board-height: calc(var(--board-width) * 6 / 7);
             --cell-gap: calc(var(--board-width) * 0.012);
             --border-size: calc(var(--board-width) * 0.028);
@@ -16,9 +20,7 @@
             --font-medium: calc(var(--board-width) * 0.035);
             --font-small: calc(var(--board-width) * 0.025);
             --button-padding: calc(var(--board-width) * 0.03) calc(var(--board-width) * 0.06);
-        }
-
-        body {
+        }        body {
             font-family: sans-serif;
             background-color: #f0f0f0;
             display: flex;
@@ -29,6 +31,9 @@
             min-height: 100vh;
             box-sizing: border-box;
             margin: 0;
+            zoom: 1;
+            transform-origin: 0 0;
+            overflow-x: hidden;
         }
 
         h1 {
@@ -144,33 +149,31 @@
                 transform: translateY(100vh) rotate(720deg);
                 opacity: 0;
             }
-        }
-
-        @media (max-width: 900px) {
+        }        @media (max-width: 900px) {
             :root {
-                --board-width: min(98vw, 90vh);
+                --board-width: min(98vw, 90vh, var(--max-board-size));
             }
 
             #game-board {
-                max-width: 100vw;
-                max-height: 100vw;
+                width: var(--board-width);
+                height: var(--board-height);
             }
         }
 
         @media (max-width: 600px) {
             :root {
-                --board-width: min(98vw, 98vh);
+                --board-width: min(98vw, 98vh, var(--max-board-size));
             }
 
             #game-board {
-                max-width: 100vw;
-                max-height: 100vw;
+                width: var(--board-width);
+                height: var(--board-height);
             }
         }
 
         @media (max-width: 400px) {
             :root {
-                --board-width: min(100vw, 100vh);
+                --board-width: min(100vw, 98vh, var(--max-board-size));
             }
         }
 
