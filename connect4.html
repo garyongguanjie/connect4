@@ -47,6 +47,7 @@
             border-radius: var(--radius-size);
             margin: 2vw auto;
             box-sizing: border-box;
+            position: relative;
         }
         .cell {
             width: 100%;
@@ -198,7 +199,7 @@
     <h1>Connect 4</h1>
     <div id="controls">
         <label>AI Depth:</label>
-        <input type="number" id="search-depth" min="1" max="10" value="5" style="width: 50px;">
+        <input type="number" id="search-depth" min="1" max="10" value="6" style="width: 50px;">
         <button id="reset-game" style="display:none;">Reset Game</button>
     </div>
     <div id="message"></div>
@@ -227,48 +228,62 @@
                     gameBoard.appendChild(cell);
                 }
             }
-        }
-
-        function handlePlayerMove(col) {
+        }        function handlePlayerMove(col) {
             if (!gameActive || currentPlayer !== PLAYER_PIECE) return;
             const row = getNextOpenRow(col);
             if (row === null) return;
-            dropPiece(row, col, PLAYER_PIECE);
-            if (checkWin(PLAYER_PIECE)) {
-                endGame(`You win!`);
-                return;
+            gameActive = false; // Prevent input during animation
+            // Animate from clicked row (if within board) or from top
+            let fromRow = null;
+            const event = window.event;
+            if (event && event.target && event.target.dataset && event.target.dataset.row !== undefined) {
+                fromRow = parseInt(event.target.dataset.row);
+                if (isNaN(fromRow) || fromRow < 0 || fromRow > row) fromRow = null;
             }
-            if(checkDraw()){
-                endGame("It's a draw!");
-                return;
-            }
-            currentPlayer = AI_PIECE;
-            message.textContent = "AI's turn";
-            setTimeout(aiMove, 500);
-        }
-
-        function aiMove() {
-            if (!gameActive) return;
-
-            // Get user-defined depth
-            const depthInput = document.getElementById('search-depth');
-            const depth = Math.max(1, Math.min(10, parseInt(depthInput.value) || 5));
-
-            const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, PLAYER_PIECE, AI_PIECE);
-            const row = getNextOpenRow(col);
-            if (row !== null) {
-                dropPiece(row, col, AI_PIECE);
-                if (checkWin(AI_PIECE)) {
-                    endGame(`AI wins!`);
+            animateDrop(col, row, PLAYER_PIECE, fromRow, () => {
+                if (checkWin(PLAYER_PIECE)) {
+                    endGame(`You win!`);
                     return;
                 }
                 if(checkDraw()){
                     endGame("It's a draw!");
                     return;
                 }
+                currentPlayer = AI_PIECE;
+                message.textContent = "AI's turn";
+                gameActive = true; // Re-enable before AI move
+                setTimeout(() => {
+                    aiMove();
+                }, 500);
+            });
+        }        function aiMove() {
+            if (!gameActive || currentPlayer !== AI_PIECE) return;
+            gameActive = false; // Prevent any input during AI turn
+            // Get user-defined depth
+            const depthInput = document.getElementById('search-depth');
+            const depth = Math.max(1, Math.min(10, parseInt(depthInput.value) || 5));
+            const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, PLAYER_PIECE, AI_PIECE);
+            const row = getNextOpenRow(col);
+            if (row !== null) {
+                animateDrop(col, row, AI_PIECE, 0, () => {
+                    if (checkWin(AI_PIECE)) {
+                        endGame(`AI wins!`);
+                        return;
+                    }
+                    if(checkDraw()){
+                        endGame("It's a draw!");
+                        return;
+                    }
+                    currentPlayer = PLAYER_PIECE;
+                    message.textContent = "Your turn";
+                    gameActive = true; // Re-enable for player's turn after animation completes
+                });
+            } else {
+                // If somehow no valid move (should never happen), give turn back to player
+                currentPlayer = PLAYER_PIECE;
+                message.textContent = "Your turn";
+                gameActive = true;
             }
-            currentPlayer = PLAYER_PIECE;
-            message.textContent = "Your turn";
         }
 
         function getNextOpenRow(col) {
@@ -304,8 +319,7 @@
                         return true;
                     }
                 }
-            }
-            // Positive Diagonal
+            }            // Positive Diagonal
             for (let r = 0; r <= ROWS - 4; r++) {
                 for (let c = 0; c <= COLS - 4; c++) {
                     if (board[r][c] === piece && board[r+1][c+1] === piece && board[r+2][c+2] === piece && board[r+3][c+3] === piece) {
@@ -355,20 +369,21 @@
             if (msg.includes("win")) {
                 dropConfetti();
             }
-        }
-
-        function startGame(playerStart) {
+        }        function startGame(playerStart) {
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             createBoard();
-            gameActive = true;
             resetBtn.style.display = 'none';
             message.textContent = '';
             currentPlayer = playerStart;
             if (currentPlayer === AI_PIECE) {
                 message.textContent = "AI's turn";
-                setTimeout(aiMove, 500);
+                gameActive = true; // Enable game state for AI's first move
+                setTimeout(() => {
+                    aiMove();
+                }, 500);
             } else {
                 message.textContent = "Your turn";
+                gameActive = true; // Enable game state for player's first move
             }
         }
 
@@ -554,6 +569,55 @@
                 }
                 return [worst_action, worst_value];
             }
+        }
+
+        function animateDrop(col, targetRow, piece, fromRow, callback) {
+            // Find the target cell for the destination
+            const targetCell = gameBoard.querySelector(`[data-row='${targetRow}'][data-col='${col}']`);
+            const cellSample = gameBoard.querySelector('.cell');
+            const cellWidth = cellSample.offsetWidth;
+            const cellHeight = cellSample.offsetHeight;
+            let startRow = fromRow;
+            if (startRow === undefined || startRow === null) startRow = 0;
+            // Calculate left/top relative to the board using offsetLeft/offsetTop
+            const left = targetCell.offsetLeft;
+            const endTop = targetCell.offsetTop;
+            // For startTop, use the offsetTop of the cell in the same column at startRow
+            let startTop = 0;
+            if (startRow !== targetRow) {
+                const startCell = gameBoard.querySelector(`[data-row='${startRow}'][data-col='${col}']`);
+                if (startCell) startTop = startCell.offsetTop;
+            } else {
+                startTop = endTop;
+            }
+            const tempPiece = document.createElement('div');
+            tempPiece.className = 'cell ' + (piece === PLAYER_PIECE ? 'player1' : 'player2');
+            tempPiece.style.position = 'absolute';
+            tempPiece.style.left = `${left}px`;
+            tempPiece.style.top = `${startTop}px`;
+            tempPiece.style.width = `${cellWidth}px`;
+            tempPiece.style.height = `${cellHeight}px`;
+            tempPiece.style.pointerEvents = 'none';
+            tempPiece.style.zIndex = 2000;
+            gameBoard.appendChild(tempPiece);            const duration = getDropDuration(startRow, targetRow);
+            tempPiece.animate([
+                { top: `${startTop}px` },
+                { top: `${endTop}px` }
+            ], {
+                duration: duration,
+                easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Smooth out the animation
+                fill: 'forwards'
+            });
+            // Ensure animation completes even if there's a slight browser timing discrepancy
+            setTimeout(() => {
+                gameBoard.removeChild(tempPiece);
+                dropPiece(targetRow, col, piece);
+                if (callback) callback();
+            }, duration + 50);
+        }
+
+        function getDropDuration(startRow, targetRow) {
+            return 250 + 60 * Math.abs(targetRow - startRow); // Base duration + additional time per row
         }
     </script>
 </body>
