@@ -11,7 +11,7 @@
 
         :root {
             --max-board-size: 900px;
-            --board-width: min(98vw, 90vh, var(--max-board-size));
+            --board-width: min(95vw, 80vh, var(--max-board-size));
             --board-height: calc(var(--board-width) * 6 / 7);
             --cell-gap: calc(var(--board-width) * 0.012);
             --border-size: calc(var(--board-width) * 0.028);
@@ -26,11 +26,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             min-height: 100vh;
             box-sizing: border-box;
             margin: 0;
             overflow-x: hidden;
+            padding-top: 1vh;
         }
 
         h1 {
@@ -51,7 +52,7 @@
             background-color: #4a90e2;
             border: var(--border-size) solid #4a90e2;
             border-radius: var(--radius-size);
-            margin: 2vh auto;
+            margin: 1vh auto;
             box-sizing: border-box;
             position: relative;
         }
@@ -83,7 +84,7 @@
         }
 
         #controls {
-            margin-top: 2vh;
+            margin-top: 1vh;
             display: flex;
             flex-wrap: wrap;
             gap: 1vw;
@@ -112,7 +113,7 @@
         }
 
         #message {
-            margin-top: 2vh;
+            margin-top: 1vh;
             font-size: var(--font-large);
             font-weight: bold;
             color: #333;
@@ -145,15 +146,6 @@
             to {
                 transform: translateY(100vh) rotate(720deg);
                 opacity: 0;
-            }
-        }        @media (max-width: 900px) {
-            :root {
-                --board-width: min(98vw, 90vh, var(--max-board-size));
-            }
-
-            #game-board {
-                width: var(--board-width);
-                height: var(--board-height);
             }
         }
 
