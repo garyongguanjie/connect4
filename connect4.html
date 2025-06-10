@@ -289,9 +289,8 @@
             // Get user-defined depth
             const depthInput = document.getElementById('search-depth');
             const depth = Math.max(1, Math.min(MAX_DEPTH, parseInt(depthInput.value) || 5));
-            // Pass current and next player to alphabeta (regardless of who's AI/human)
-            const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, 
-                currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER, currentPlayer);
+            // Call negamax
+            const [col, _] = negamax(board, depth, -Infinity, Infinity, 1, currentPlayer);
             const row = getNextOpenRow(col);
             if (row !== null) {
                 animateDrop(col, row, currentPlayer, 0, () => {
@@ -451,12 +450,17 @@
         }
 
         function addToTranspositionTable(key, entry) {
-            if (transpositionTable.size >= MAX_TABLE_SIZE) {
-                // Clear oldest entries (simple strategy)
-                const keysToDelete = Array.from(transpositionTable.keys()).slice(0, MAX_TABLE_SIZE / 2);
-                keysToDelete.forEach(k => transpositionTable.delete(k));
+            // entry now contains: { bestMove, value, depth, flag, is_valid }
+            // The 'is_valid' property is part of the entry object itself.
+            if (transpositionTable.size >= MAX_TABLE_SIZE && !transpositionTable.has(key)) {
+                // A simple eviction strategy: remove half of the oldest entries if the table is full and a new key is being added.
+                // More sophisticated strategies (like LRU) could be implemented if needed.
+                const keys = Array.from(transpositionTable.keys());
+                for (let i = 0; i < Math.floor(MAX_TABLE_SIZE / 2); i++) {
+                    transpositionTable.delete(keys[i]);
+                }
             }
-            transpositionTable.set(key, entry);
+            transpositionTable.set(key, entry); // entry already includes is_valid: true
         }
 
         function count_nb(arr, value) {
@@ -606,94 +610,119 @@
             return 0;
         }
 
-        function alphabeta(node, depth, alpha, beta, max_player, player, ai_player) {
-            // Check transposition table
+        function negamax(node, depth, alpha, beta, color, ai_player_id_const) {
+            let alphaOrig = alpha;
+
+            // Transposition Table Lookup
             const boardHash = getBoardHash(node);
-            const tableKey = `${boardHash}-${depth}-${max_player}`;
+            const tableKey = `${boardHash}-${depth}`; // Simplified key for Negamax
             
             if (transpositionTable.has(tableKey)) {
-                const cached = transpositionTable.get(tableKey);
-                if (cached.depth >= depth) {
-                    if (cached.type === 'exact') {
-                        return [cached.bestMove, cached.value];
-                    } else if (cached.type === 'lowerbound' && cached.value >= beta) {
-                        return [cached.bestMove, cached.value];
-                    } else if (cached.type === 'upperbound' && cached.value <= alpha) {
-                        return [cached.bestMove, cached.value];
+                const ttEntry = transpositionTable.get(tableKey);
+                // Ensure ttEntry and ttEntry.flag are defined before accessing
+                if (ttEntry && ttEntry.is_valid && ttEntry.depth >= depth) {
+                    if (ttEntry.flag === 'EXACT') {
+                        return [ttEntry.bestMove, ttEntry.value];
+                    } else if (ttEntry.flag === 'LOWERBOUND' && ttEntry.value >= beta) {
+                        return [ttEntry.bestMove, ttEntry.value];
+                    } else if (ttEntry.flag === 'UPPERBOUND' && ttEntry.value <= alpha) {
+                        return [ttEntry.bestMove, ttEntry.value];
                     }
                 }
             }
 
             const winner = check_winner_sim(node);
-            if (winner !== 0) {
-                const value = winner === ai_player ? 1000000000 + depth : 
-                            winner === player ? -1000000000 - depth : 0;
-                addToTranspositionTable(tableKey, {
-                    bestMove: null,
-                    value: value,
-                    depth: depth,
-                    type: 'exact'
-                });
-                return [null, value];
-            }
-            if (depth === 0) {
-                const value = value_fn(node, ai_player);
-                addToTranspositionTable(tableKey, {
-                    bestMove: null,
-                    value: value,
-                    depth: depth,
-                    type: 'exact'
-                });
-                return [null, value];
-            }if (max_player) {
-                let best_value = -Infinity; let best_action = 3;
-                const valid_actions = get_valid_actions(node);
-                const ordered_moves = orderMoves(node, valid_actions, ai_player);
-                for (const action of ordered_moves) {
-                    const position = drop_piece_sim(node, action, ai_player);
-                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, false, player, ai_player);
-                    undo_move(node, position);
-                    if (score > best_value) {
-                        best_value = score;
-                        best_action = action;
-                    }
-                    alpha = Math.max(alpha, best_value);                if (alpha >= beta) {
-                        addToTranspositionTable(tableKey, {
-                            bestMove: best_action,
-                            value: best_value,
-                            depth: depth,
-                            type: 'lowerbound'
-                        });
-                        break; // Prune
-                    }
+            let canonical_heuristic_value;
+
+            if (winner !== 0) { // Terminal node (win/loss/draw)
+                if (winner === ai_player_id_const) {
+                    canonical_heuristic_value = 1000000000 + depth;
+                } else if (winner === -1) { // Draw
+                    canonical_heuristic_value = 0;
+                } else { // Opponent wins (winner is the opponent's ID)
+                    canonical_heuristic_value = -1000000000 - depth;
                 }
-                
-                // Store the final result
+                const valueToStore = color * canonical_heuristic_value;
                 addToTranspositionTable(tableKey, {
-                    bestMove: best_action,
-                    value: best_value,
+                    bestMove: null,
+                    value: valueToStore,
                     depth: depth,
-                    type: best_value <= alpha ? 'upperbound' : 
-                          best_value >= beta ? 'lowerbound' : 'exact'
+                    flag: 'EXACT', // Per pseudocode for terminal/leaf
+                    is_valid: true
                 });
-                return [best_action, best_value];
+                return [null, valueToStore];
+            }
+
+            if (depth === 0) { // Leaf node (depth limit reached)
+                canonical_heuristic_value = value_fn(node, ai_player_id_const);
+                const valueToStore = color * canonical_heuristic_value;
+                addToTranspositionTable(tableKey, {
+                    bestMove: null,
+                    value: valueToStore,
+                    depth: depth,
+                    flag: 'EXACT', // Per pseudocode for terminal/leaf
+                    is_valid: true
+                });
+                return [null, valueToStore];
+            }
+
+            let bestValue = -Infinity;
+            let bestMoveForThisNode = null; 
+            
+            // Determine the player whose turn it is for the current node in the Negamax search
+            const actual_current_player_id = (color === 1) ? ai_player_id_const 
+                                                            : (ai_player_id_const === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER);
+            
+            const valid_actions = get_valid_actions(node);
+            if (valid_actions.length === 0) { 
+                 // This case implies a draw if not already caught by check_winner_sim,
+                 // or an issue if it's not a terminal state.
+                 // For safety, evaluate as a draw or current heuristic.
+                 canonical_heuristic_value = 0; // Typically a draw if no moves and not a win/loss
+                 const valueToStore = color * canonical_heuristic_value;
+                 addToTranspositionTable(tableKey, { bestMove: null, value: valueToStore, depth: depth, flag: 'EXACT', is_valid: true });
+                 return [null, valueToStore];
+            }
+            bestMoveForThisNode = valid_actions[0]; // Default best move if no better is found
+
+            const ordered_moves = orderMoves(node, valid_actions, actual_current_player_id);
+
+            for (const action of ordered_moves) {
+                const position = drop_piece_sim(node, action, actual_current_player_id);
+                // Recursive call: flip alpha/beta, negate color
+                const [_, child_score_raw] = negamax(node, depth - 1, -beta, -alpha, -color, ai_player_id_const);
+                // Score from current player's perspective is negative of child's score
+                const current_eval_score = -child_score_raw; 
+                undo_move(node, position);
+
+                if (current_eval_score > bestValue) {
+                    bestValue = current_eval_score;
+                    bestMoveForThisNode = action;
+                }
+                alpha = Math.max(alpha, bestValue);
+                if (alpha >= beta) { // Beta cut-off
+                    break; 
+                }
+            }
+
+            // Transposition Table Store
+            let ttFlag;
+            if (bestValue <= alphaOrig) {
+                ttFlag = 'UPPERBOUND';
+            } else if (bestValue >= beta) {
+                ttFlag = 'LOWERBOUND';
             } else {
-                let worst_value = Infinity; let worst_action = 3;
-                const valid_actions = get_valid_actions(node);
-                const ordered_moves = orderMoves(node, valid_actions, player);
-                for (const action of ordered_moves) {
-                    const position = drop_piece_sim(node, action, player);
-                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, true, player, ai_player);
-                    undo_move(node, position);
-                    if (score < worst_value) {
-                        worst_value = score;
-                        worst_action = action;
-                    }
-                    beta = Math.min(beta, worst_value);
-                    if (beta <= alpha) break; // Prune
-                }
-                return [worst_action, worst_value];
+                ttFlag = 'EXACT';
             }
+            addToTranspositionTable(tableKey, {
+                bestMove: bestMoveForThisNode,
+                value: bestValue,
+                depth: depth,
+                flag: ttFlag,
+                is_valid: true
+            });
+
+            return [bestMoveForThisNode, bestValue];
         }
 
         function animateDrop(col, targetRow, piece, fromRow, callback) {
