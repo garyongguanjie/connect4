@@ -465,7 +465,7 @@
 
         function value_fn(board, player) {
             const opp_player = player === 1 ? 2 : 1;
-            return _value_fn(board, player) - 5 * _value_fn(board, opp_player);
+            return enhancedEvaluate(board, player) - enhancedEvaluate(board, opp_player);
         }
 
         function _value_fn(board, player) {
@@ -530,6 +530,204 @@
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
             return 0.5 * score;
+        }
+
+        // Enhanced evaluation function with improved pattern recognition and positional scoring
+        function enhancedEvaluate(board, player) {
+            let score = 0;
+            const opponent = player === 1 ? 2 : 1;
+            
+            // Game phase detection (early, mid, late game)
+            const totalPieces = board.flat().filter(cell => cell !== 0).length;
+            const gamePhase = totalPieces < 14 ? 'early' : totalPieces < 28 ? 'mid' : 'late';
+            
+            // Center column control with exponential weighting
+            const centerWeights = [1, 4, 16, 64, 16, 4, 1]; // Exponential preference for center
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] === player) {
+                        score += centerWeights[c] * (gamePhase === 'early' ? 2 : 1);
+                    }
+                }
+            }
+            
+            // Height strategy - prefer lower positions early, higher positions for control later
+            for (let c = 0; c < COLS; c++) {
+                for (let r = 0; r < ROWS; r++) {
+                    if (board[r][c] === player) {
+                        const heightBonus = gamePhase === 'early' ? (ROWS - r) * 3 : r * 2;
+                        score += heightBonus;
+                    }
+                }
+            }
+            
+            // Enhanced pattern recognition
+            score += evaluatePatterns(board, player, gamePhase);
+            
+            // Connection potential - how many directions each piece can potentially connect
+            score += evaluateConnectionPotential(board, player);
+            
+            // Board control in different regions
+            score += evaluateBoardControl(board, player, gamePhase);
+            
+            return score;
+        }
+        
+        function evaluatePatterns(board, player, gamePhase) {
+            let score = 0;
+            const opponent = player === 1 ? 2 : 1;
+            
+            // Evaluate all possible 4-cell windows
+            const directions = [
+                [0, 1],   // horizontal
+                [1, 0],   // vertical
+                [1, 1],   // diagonal /
+                [1, -1]   // diagonal \
+            ];
+            
+            for (const [dr, dc] of directions) {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const window = [];
+                        let valid = true;
+                        
+                        // Extract 4-cell window
+                        for (let i = 0; i < 4; i++) {
+                            const nr = r + i * dr;
+                            const nc = c + i * dc;
+                            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) {
+                                valid = false;
+                                break;
+                            }
+                            window.push(board[nr][nc]);
+                        }
+                        
+                        if (valid) {
+                            score += evaluateWindow(window, player, gamePhase);
+                        }
+                    }
+                }
+            }
+            
+            return score;
+        }
+        
+        function evaluateWindow(window, player, gamePhase) {
+            let score = 0;
+            const opponent = player === 1 ? 2 : 1;
+            const playerCount = count_nb(window, player);
+            const opponentCount = count_nb(window, opponent);
+            const emptyCount = count_nb(window, 0);
+            
+            // Skip if opponent has pieces (blocked pattern)
+            if (opponentCount > 0) return 0;
+            
+            // Winning patterns
+            if (playerCount === 4) return 100000;
+            
+            // Strong patterns based on game phase
+            const phaseMultiplier = gamePhase === 'early' ? 0.8 : gamePhase === 'mid' ? 1.2 : 1.5;
+            
+            if (playerCount === 3 && emptyCount === 1) {
+                // Open three - very strong
+                score += 5000 * phaseMultiplier;
+                
+                // Bonus for specific patterns
+                if (window[0] === 0 && window[3] === 0) {
+                    score += 1000; // Both ends open
+                } else if (window[1] === 0 || window[2] === 0) {
+                    score += 500; // Split three
+                }
+            }
+            
+            if (playerCount === 2 && emptyCount === 2) {
+                // Open two
+                score += 150 * phaseMultiplier;
+                
+                // Bonus for centered twos
+                if ((window[0] === 0 && window[3] === 0) || 
+                    (window[1] === player && window[2] === player)) {
+                    score += 100;
+                }
+            }
+            
+            if (playerCount === 1 && emptyCount === 3) {
+                score += 10 * phaseMultiplier;
+            }
+            
+            return score;
+        }
+        
+        function evaluateConnectionPotential(board, player) {
+            let score = 0;
+            const directions = [[0,1], [1,0], [1,1], [1,-1]];
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] === player) {
+                        let connections = 0;
+                        
+                        for (const [dr, dc] of directions) {
+                            let canConnect = false;
+                            
+                            // Check if this piece can connect in this direction
+                            for (let dist = 1; dist <= 3; dist++) {
+                                const nr = r + dist * dr;
+                                const nc = c + dist * dc;
+                                
+                                if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                    if (board[nr][nc] === 0) {
+                                        canConnect = true;
+                                    } else if (board[nr][nc] !== player) {
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (canConnect) connections++;
+                        }
+                        
+                        score += connections * 25;
+                    }
+                }
+            }
+            
+            return score;
+        }
+        
+        function evaluateBoardControl(board, player, gamePhase) {
+            let score = 0;
+            
+            // Divide board into regions and evaluate control
+            const regions = [
+                {rows: [0, 2], cols: [0, 2], weight: 1},     // top-left
+                {rows: [0, 2], cols: [2, 4], weight: 2},     // top-center
+                {rows: [0, 2], cols: [4, 6], weight: 1},     // top-right
+                {rows: [3, 5], cols: [0, 2], weight: 2},     // bottom-left
+                {rows: [3, 5], cols: [2, 4], weight: 3},     // bottom-center
+                {rows: [3, 5], cols: [4, 6], weight: 2}      // bottom-right
+            ];
+            
+            for (const region of regions) {
+                let playerPieces = 0;
+                let totalPieces = 0;
+                
+                for (let r = region.rows[0]; r <= region.rows[1]; r++) {
+                    for (let c = region.cols[0]; c <= region.cols[1]; c++) {
+                        if (r < ROWS && c < COLS) {
+                            if (board[r][c] === player) playerPieces++;
+                            if (board[r][c] !== 0) totalPieces++;
+                        }
+                    }
+                }
+                
+                if (totalPieces > 0) {
+                    const control = playerPieces / totalPieces;
+                    score += control * region.weight * 50;
+                }
+            }
+            
+            return score;
         }
 
         function get_valid_actions(board) {
