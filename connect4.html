@@ -227,11 +227,12 @@
     <script>
         const ROWS = 6;
         const COLS = 7;
-        const PLAYER_PIECE = 1;
-        const AI_PIECE = 2;
+        const FIRST_PLAYER = 1;  // Represents first player (regardless of human/AI)
+        const SECOND_PLAYER = 2;  // Represents second player (regardless of human/AI)
         const MAX_DEPTH = 15; // Max depth for AI search
         let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
         let currentPlayer;
+        let isAIPlayer;  // Will be true if AI is the current player
         let gameActive = false;
         const gameBoard = document.getElementById('game-board');
         const message = document.getElementById('message');
@@ -250,7 +251,7 @@
                 }
             }
         } function handlePlayerMove(col) {
-            if (!gameActive || currentPlayer !== PLAYER_PIECE) return;
+            if (!gameActive || isAIPlayer) return;
             const row = getNextOpenRow(col);
             if (row === null) return;
             gameActive = false; // Prevent input during animation
@@ -261,8 +262,8 @@
                 fromRow = parseInt(event.target.dataset.row);
                 if (isNaN(fromRow) || fromRow < 0 || fromRow > row) fromRow = null;
             }
-            animateDrop(col, row, PLAYER_PIECE, fromRow, () => {
-                if (checkWin(PLAYER_PIECE)) {
+            animateDrop(col, row, currentPlayer, fromRow, () => {
+                if (checkWin(currentPlayer)) {
                     endGame(`You win!`);
                     return;
                 }
@@ -270,15 +271,16 @@
                     endGame("It's a draw!");
                     return;
                 }
-                currentPlayer = AI_PIECE;
+                currentPlayer = currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER;
+                isAIPlayer = true;
                 message.textContent = "AI's turn";
                 gameActive = true; // Re-enable before AI move
                 setTimeout(() => {
                     aiMove();
                 }, 500);
             });
-        } function aiMove() {
-            if (!gameActive || currentPlayer !== AI_PIECE) return;
+        }function aiMove() {
+            if (!gameActive || !isAIPlayer) return;
             gameActive = false; // Prevent any input during AI turn
             
             // Clear transposition table for new search
@@ -287,11 +289,13 @@
             // Get user-defined depth
             const depthInput = document.getElementById('search-depth');
             const depth = Math.max(1, Math.min(MAX_DEPTH, parseInt(depthInput.value) || 5));
-            const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, PLAYER_PIECE, AI_PIECE);
+            // Pass current and next player to alphabeta (regardless of who's AI/human)
+            const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, 
+                currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER, currentPlayer);
             const row = getNextOpenRow(col);
             if (row !== null) {
-                animateDrop(col, row, AI_PIECE, 0, () => {
-                    if (checkWin(AI_PIECE)) {
+                animateDrop(col, row, currentPlayer, 0, () => {
+                    if (checkWin(currentPlayer)) {
                         endGame(`AI wins!`);
                         return;
                     }
@@ -299,13 +303,14 @@
                         endGame("It's a draw!");
                         return;
                     }
-                    currentPlayer = PLAYER_PIECE;
+                    currentPlayer = currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER;
+                    isAIPlayer = false;
                     message.textContent = "Your turn";
                     gameActive = true; // Re-enable for player's turn after animation completes
                 });
             } else {
                 // If somehow no valid move (should never happen), give turn back to player
-                currentPlayer = PLAYER_PIECE;
+                isAIPlayer = false;
                 message.textContent = "Your turn";
                 gameActive = true;
             }
@@ -318,12 +323,10 @@
                 }
             }
             return null;
-        }
-
-        function dropPiece(row, col, piece) {
+        }        function dropPiece(row, col, piece) {
             board[row][col] = piece;
             const cell = document.querySelector(`[data-row='${row}'][data-col='${col}']`);
-            cell.classList.add(piece === PLAYER_PIECE ? 'player1' : 'player2');
+            cell.classList.add(piece === FIRST_PLAYER ? 'player1' : 'player2');
         }
 
         function checkWin(piece) {
@@ -394,13 +397,14 @@
             if (msg.includes("win")) {
                 dropConfetti();
             }
-        } function startGame(playerStart) {
+        } function startGame(isAIFirst) {
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             createBoard();
             resetBtn.style.display = 'none';
             message.textContent = '';
-            currentPlayer = playerStart;
-            if (currentPlayer === AI_PIECE) {
+            currentPlayer = FIRST_PLAYER; // Always start with player 1
+            isAIPlayer = isAIFirst; // Track if AI is the current player
+            if (isAIFirst) {
                 message.textContent = "AI's turn";
                 gameActive = true; // Enable game state for AI's first move
                 setTimeout(() => {
@@ -418,17 +422,15 @@
             resetBtn.style.display = 'none';
             message.textContent = '';
             createBoard();
-        });
-
-        // Modal button handlers
+        });        // Modal button handlers
         document.getElementById('modal-player-first').addEventListener('click', () => {
             document.getElementById('start-modal').style.display = 'none';
-            startGame(PLAYER_PIECE);
+            startGame(false); // Player goes first
         });
 
         document.getElementById('modal-ai-first').addEventListener('click', () => {
             document.getElementById('start-modal').style.display = 'none';
-            startGame(AI_PIECE);
+            startGame(true);  // AI goes first
         });
 
         createBoard();
@@ -506,14 +508,16 @@
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
             return score;
-        }
-
-        function evaluate_row(window, player, r) {
+        }        function evaluate_row(window, player, r) {
             let score = 0;
             const inverse_row = 7 - r;
             score += inverse_row;
-            if (player === 1 && r % 2 === 0) score += 10;
-            if (player === 2 && r % 2 !== 0) score += 10;
+            // Convert 0-indexed row to 1-indexed for strategy application
+            const row_1_indexed = r + 1;
+            // First player (1) prefers odd-numbered rows in 1-indexed terms
+            if (player === FIRST_PLAYER && row_1_indexed % 2 !== 0) score += 10;
+            // Second player (2) prefers even-numbered rows in 1-indexed terms
+            if (player === SECOND_PLAYER && row_1_indexed % 2 === 0) score += 10;
             if (count_nb(window, player) === 4) score += 10000;
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
@@ -708,9 +712,8 @@
                 if (startCell) startTop = startCell.offsetTop;
             } else {
                 startTop = endTop;
-            }
-            const tempPiece = document.createElement('div');
-            tempPiece.className = 'cell ' + (piece === PLAYER_PIECE ? 'player1' : 'player2');
+            }            const tempPiece = document.createElement('div');
+            tempPiece.className = 'cell ' + (piece === FIRST_PLAYER ? 'player1' : 'player2');
             tempPiece.style.position = 'absolute';
             tempPiece.style.left = `${left}px`;
             tempPiece.style.top = `${startTop}px`;
