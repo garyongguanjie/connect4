@@ -470,7 +470,7 @@
 
         function _value_fn(board, player) {
             let score = 0;
-            score += 101 * count_nb(board.map(row => row[3]), player);
+            score += 25 * count_nb(board.map(row => row[3]), player);
             for (let r = 0; r < ROWS; r++) {
                 const row_array = board[r];
                 for (let c = 0; c < COLS - 3; c++) {
@@ -504,7 +504,7 @@
             let score = 0;
             const inverse_row = 7 - r;
             score += inverse_row;
-            if (count_nb(window, player) === 4) score += 10000;
+            if (count_nb(window, player) === 4) score += 1000000;
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
             return score;
@@ -518,7 +518,7 @@
             if (player === FIRST_PLAYER && row_1_indexed % 2 !== 0) score += 10;
             // Second player (2) prefers even-numbered rows in 1-indexed terms
             if (player === SECOND_PLAYER && row_1_indexed % 2 === 0) score += 10;
-            if (count_nb(window, player) === 4) score += 10000;
+            if (count_nb(window, player) === 4) score += 1000000;
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
             return score;
@@ -526,10 +526,10 @@
 
         function evaluate_column(window, player) {
             let score = 0;
-            if (count_nb(window, player) === 4) score += 10000;
+            if (count_nb(window, player) === 4) score += 1000000;
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
-            return 0.5 * score;
+            return 1.0 * score;
         }
 
         // Enhanced evaluation function with improved pattern recognition and positional scoring
@@ -542,11 +542,11 @@
             const gamePhase = totalPieces < 14 ? 'early' : totalPieces < 28 ? 'mid' : 'late';
             
             // Center column control with exponential weighting
-            const centerWeights = [1, 4, 16, 64, 16, 4, 1]; // Exponential preference for center
+            const centerWeights = [2, 5, 10, 15, 10, 5, 2]; // Exponential preference for center
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     if (board[r][c] === player) {
-                        score += centerWeights[c] * (gamePhase === 'early' ? 2 : 1);
+                        score += centerWeights[c] * (gamePhase === 'early' ? 1.5 : 1);
                     }
                 }
             }
@@ -555,7 +555,7 @@
             for (let c = 0; c < COLS; c++) {
                 for (let r = 0; r < ROWS; r++) {
                     if (board[r][c] === player) {
-                        const heightBonus = gamePhase === 'early' ? (ROWS - r) * 3 : r * 2;
+                        const heightBonus = gamePhase === 'early' ? (ROWS - r) * 2 : r * 1.5;
                         score += heightBonus;
                     }
                 }
@@ -623,36 +623,36 @@
             if (opponentCount > 0) return 0;
             
             // Winning patterns
-            if (playerCount === 4) return 100000;
+            if (playerCount === 4) return 1000000;
             
             // Strong patterns based on game phase
             const phaseMultiplier = gamePhase === 'early' ? 0.8 : gamePhase === 'mid' ? 1.2 : 1.5;
             
             if (playerCount === 3 && emptyCount === 1) {
                 // Open three - very strong
-                score += 5000 * phaseMultiplier;
+                score += 800 * phaseMultiplier;
                 
                 // Bonus for specific patterns
                 if (window[0] === 0 && window[3] === 0) {
-                    score += 1000; // Both ends open
+                    score += 400; // Both ends open
                 } else if (window[1] === 0 || window[2] === 0) {
-                    score += 500; // Split three
+                    score += 200; // Split three
                 }
             }
             
             if (playerCount === 2 && emptyCount === 2) {
                 // Open two
-                score += 150 * phaseMultiplier;
+                score += 60 * phaseMultiplier;
                 
                 // Bonus for centered twos
                 if ((window[0] === 0 && window[3] === 0) || 
                     (window[1] === player && window[2] === player)) {
-                    score += 100;
+                    score += 40;
                 }
             }
             
             if (playerCount === 1 && emptyCount === 3) {
-                score += 10 * phaseMultiplier;
+                score += 0 * phaseMultiplier;
             }
             
             return score;
@@ -687,7 +687,7 @@
                             if (canConnect) connections++;
                         }
                         
-                        score += connections * 25;
+                        score += connections * 15;
                     }
                 }
             }
@@ -723,7 +723,7 @@
                 
                 if (totalPieces > 0) {
                     const control = playerPieces / totalPieces;
-                    score += control * region.weight * 50;
+                    score += control * region.weight * 25;
                 }
             }
             
