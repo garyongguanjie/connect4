@@ -203,6 +203,23 @@
         .modal button {
             min-width: 120px;
         }
+
+        .thinking-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4a90e2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
@@ -273,7 +290,7 @@
                 }
                 currentPlayer = currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER;
                 isAIPlayer = true;
-                message.textContent = "AI's turn";
+                message.innerHTML = "AI is thinking <span class='thinking-spinner'></span>";
                 gameActive = true; // Re-enable before AI move
                 setTimeout(() => {
                     aiMove();
@@ -405,7 +422,7 @@
             currentPlayer = FIRST_PLAYER; // Always start with player 1
             isAIPlayer = isAIFirst; // Track if AI is the current player
             if (isAIFirst) {
-                message.textContent = "AI's turn";
+                message.innerHTML = "AI is thinking <span class='thinking-spinner'></span>";
                 gameActive = true; // Enable game state for AI's first move
                 setTimeout(() => {
                     aiMove();
