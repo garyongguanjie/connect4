@@ -1,749 +1,726 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connect 4</title>
-    <style>        html {
-            font-size: 16px;
+    <title>Connect 4 Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        :root {
-            --max-board-size: 900px;
-            --board-width: min(95vw, 80vh, var(--max-board-size));
-            --board-height: calc(var(--board-width) * 6 / 7);
-            --cell-gap: calc(var(--board-width) * 0.012);
-            --border-size: calc(var(--board-width) * 0.028);
-            --radius-size: calc(var(--board-width) * 0.028);
-            --font-large: calc(var(--board-width) * 0.045);
-            --font-medium: calc(var(--board-width) * 0.035);
-            --font-small: calc(var(--board-width) * 0.025);
-            --button-padding: calc(var(--board-width) * 0.03) calc(var(--board-width) * 0.06);
-        }        body {
-            font-family: sans-serif;
-            background-color: #f0f0f0;
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            min-height: 100vh;
-            box-sizing: border-box;
-            margin: 0;
-            overflow-x: hidden;
-            padding-top: 1vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
         }
 
         h1 {
-            color: #333;
-            font-size: var(--font-large);
-            margin-bottom: 1vh;
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        #game-board {
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+
+        select, button {
+            padding: 8px 15px;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            background: white;
+            color: #2c3e50;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:hover, button:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .game-status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-red {
+            color: #e74c3c;
+        }
+
+        .player-yellow {
+            color: #f39c12;
+        }
+
+        .board {
+            background: #3498db;
+            border-radius: 15px;
+            padding: 20px;
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             grid-template-rows: repeat(6, 1fr);
-            width: var(--board-width);
-            height: var(--board-height);
-            max-width: 900px;
-            max-height: 771px;
-            gap: var(--cell-gap);
-            background-color: #4a90e2;
-            border: var(--border-size) solid #4a90e2;
-            border-radius: var(--radius-size);
-            margin: 1vh auto;
-            box-sizing: border-box;
-            position: relative;
+            gap: 10px;
+            margin: 0 auto;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+            max-width: 490px;
+            aspect-ratio: 7/6;
         }
 
         .cell {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            height: auto;
-            background-color: #fff;
+            background: white;
             border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            aspect-ratio: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-sizing: border-box;
-            margin: 0;
         }
 
-        .cell.player1 {
-            background-color: #f55c47;
+        .cell:hover {
+            background: #ecf0f1;
+            transform: scale(1.05);
         }
 
-        .cell.player2 {
-            background-color: #f8d568;
+        .cell.disabled {
+            cursor: not-allowed;
+        }
+
+        .cell.disabled:hover {
+            background: white;
+            transform: none;
+        }
+
+        .piece {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .piece.red {
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #e74c3c);
+        }
+
+        .piece.yellow {
+            background: radial-gradient(circle at 30% 30%, #ffd93d, #f39c12);
+        }
+
+        .piece.dropping {
+            animation: drop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        @keyframes drop {
+            0% {
+                transform: translateY(-400px) scale(0.8);
+                opacity: 0.8;
+            }
+            50% {
+                transform: translateY(0) scale(1.1);
+            }
+            100% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
         }
 
         .winning-piece {
-            border: calc(var(--board-width) * 0.009) solid #32cd32;
-            box-sizing: border-box;
+            animation: pulse 1s infinite;
         }
 
-        #controls {
-            margin-top: 1vh;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1vw;
-            align-items: center;
-            justify-content: center;
-            font-size: var(--font-medium);
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+            }
         }
 
-        button,
-        input[type='number'] {
-            padding: var(--button-padding);
-            font-size: var(--font-medium);
-            min-width: 60px;
-            border-radius: var(--radius-size);
-        }
-
-        button {
-            border: none;
-            background-color: #4a90e2;
-            color: white;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #357abd;
-        }
-
-        #message {
-            margin-top: 1vh;
-            font-size: var(--font-large);
-            font-weight: bold;
-            color: #333;
-            min-height: 30px;
-            text-align: center;
-        }
-
-        .confetti {
+        .column-indicator {
             position: absolute;
-            width: calc(var(--board-width) * 0.018);
-            height: calc(var(--board-width) * 0.018);
-            min-width: 8px;
-            min-height: 8px;
-            max-width: 16px;
-            max-height: 16px;
-            background-color: #f00;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 20px solid #2c3e50;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .cell:hover .column-indicator {
             opacity: 0.7;
-            animation: confetti-fall 2s linear forwards;
-            top: 0;
-            left: 0;
-            pointer-events: none;
         }
 
-        @keyframes confetti-fall {
-            from {
-                transform: translateY(0) rotate(0deg);
-                opacity: 0.7;
+        .reset-button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            margin-top: 20px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .reset-button:hover {
+            background: #c0392b;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 20px;
+                margin: 10px;
             }
 
-            to {
-                transform: translateY(100vh) rotate(720deg);
-                opacity: 0;
+            h1 {
+                font-size: 2em;
+                margin-bottom: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .board {
+                padding: 15px;
+                gap: 8px;
+            }
+
+            .cell {
+                min-height: 40px;
             }
         }
 
-        @media (max-width: 600px) {
-            :root {
-                --board-width: min(98vw, 98vh, var(--max-board-size));
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 15px;
             }
 
-            #game-board {
-                width: var(--board-width);
-                height: var(--board-height);
+            h1 {
+                font-size: 1.8em;
             }
-        }
 
-        @media (max-width: 400px) {
-            :root {
-                --board-width: min(100vw, 98vh, var(--max-board-size));
+            .board {
+                padding: 10px;
+                gap: 6px;
             }
-        }
 
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
+            .controls {
+                text-align: center;
+            }
 
-        .modal {
-            background: white;
-            padding: 2rem;
-            border-radius: var(--radius-size);
-            text-align: center;
-            max-width: 90%;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+            .control-group {
+                width: 100%;
+            }
 
-        .modal h2 {
-            color: #333;
-            font-size: var(--font-large);
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-        }
-
-        .modal button {
-            min-width: 120px;
+            select, button {
+                width: 100%;
+                max-width: 200px;
+            }
         }
     </style>
 </head>
-
 <body>
-    <div id="start-modal" class="modal-overlay">
-        <div class="modal">
-            <h2>Who starts?</h2>
-            <div class="modal-buttons">
-                <button id="modal-player-first">Player</button>
-                <button id="modal-ai-first">AI</button>
-            </div>
-        </div>
-    </div>
-    <h1>Connect 4</h1>
-    <div id="controls">
-        <label>AI Depth:</label>
-        <input type="number" id="search-depth" min="1" max="15" value="10" style="width: 50px;">
-        <button id="reset-game" style="display:none;">Reset Game</button>
-    </div>
-    <div id="message"></div>
-    <div id="game-board"></div>
-    <script>
-        const ROWS = 6;
-        const COLS = 7;
-        const FIRST_PLAYER = 1;  // Represents first player (regardless of human/AI)
-        const SECOND_PLAYER = 2;  // Represents second player (regardless of human/AI)
-        const MAX_DEPTH = 15; // Max depth for AI search
-        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-        let currentPlayer;
-        let isAIPlayer;  // Will be true if AI is the current player
-        let gameActive = false;
-        const gameBoard = document.getElementById('game-board');
-        const message = document.getElementById('message');
-        const resetBtn = document.getElementById('reset-game');
-
-        function createBoard() {
-            gameBoard.innerHTML = '';
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    const cell = document.createElement('div');
-                    cell.classList.add('cell');
-                    cell.dataset.row = r;
-                    cell.dataset.col = c;
-                    cell.addEventListener('click', () => handlePlayerMove(c));
-                    gameBoard.appendChild(cell);
-                }
-            }
-        } function handlePlayerMove(col) {
-            if (!gameActive || isAIPlayer) return;
-            const row = getNextOpenRow(col);
-            if (row === null) return;
-            gameActive = false; // Prevent input during animation
-            // Animate from clicked row (if within board) or from top
-            let fromRow = null;
-            const event = window.event;
-            if (event && event.target && event.target.dataset && event.target.dataset.row !== undefined) {
-                fromRow = parseInt(event.target.dataset.row);
-                if (isNaN(fromRow) || fromRow < 0 || fromRow > row) fromRow = null;
-            }
-            animateDrop(col, row, currentPlayer, fromRow, () => {
-                if (checkWin(currentPlayer)) {
-                    endGame(`You win!`);
-                    return;
-                }
-                if (checkDraw()) {
-                    endGame("It's a draw!");
-                    return;
-                }
-                currentPlayer = currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER;
-                isAIPlayer = true;
-                message.textContent = "AI's turn";
-                gameActive = true; // Re-enable before AI move
-                setTimeout(() => {
-                    aiMove();
-                }, 500);
-            });
-        }function aiMove() {
-            if (!gameActive || !isAIPlayer) return;
-            gameActive = false; // Prevent any input during AI turn
-            
-            // Clear transposition table for new search
-            clearTranspositionTable();
-            
-            // Get user-defined depth
-            const depthInput = document.getElementById('search-depth');
-            const depth = Math.max(1, Math.min(MAX_DEPTH, parseInt(depthInput.value) || 5));
-            // Pass current and next player to alphabeta (regardless of who's AI/human)
-            const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, 
-                currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER, currentPlayer);
-            const row = getNextOpenRow(col);
-            if (row !== null) {
-                animateDrop(col, row, currentPlayer, 0, () => {
-                    if (checkWin(currentPlayer)) {
-                        endGame(`AI wins!`);
-                        return;
-                    }
-                    if (checkDraw()) {
-                        endGame("It's a draw!");
-                        return;
-                    }
-                    currentPlayer = currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER;
-                    isAIPlayer = false;
-                    message.textContent = "Your turn";
-                    gameActive = true; // Re-enable for player's turn after animation completes
-                });
-            } else {
-                // If somehow no valid move (should never happen), give turn back to player
-                isAIPlayer = false;
-                message.textContent = "Your turn";
-                gameActive = true;
-            }
-        }
-
-        function getNextOpenRow(col) {
-            for (let r = ROWS - 1; r >= 0; r--) {
-                if (board[r][col] === 0) {
-                    return r;
-                }
-            }
-            return null;
-        }        function dropPiece(row, col, piece) {
-            board[row][col] = piece;
-            const cell = document.querySelector(`[data-row='${row}'][data-col='${col}']`);
-            cell.classList.add(piece === FIRST_PLAYER ? 'player1' : 'player2');
-        }
-
-        function checkWin(piece) {
-            // Horizontal
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] === piece && board[r][c + 1] === piece && board[r][c + 2] === piece && board[r][c + 3] === piece) {
-                        highlightWinningPieces([[r, c], [r, c + 1], [r, c + 2], [r, c + 3]]);
-                        return true;
-                    }
-                }
-            }
-            // Vertical
-            for (let c = 0; c < COLS; c++) {
-                for (let r = 0; r <= ROWS - 4; r++) {
-                    if (board[r][c] === piece && board[r + 1][c] === piece && board[r + 2][c] === piece && board[r + 3][c] === piece) {
-                        highlightWinningPieces([[r, c], [r + 1, c], [r + 2, c], [r + 3, c]]);
-                        return true;
-                    }
-                }
-            }            // Positive Diagonal
-            for (let r = 0; r <= ROWS - 4; r++) {
-                for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] === piece && board[r + 1][c + 1] === piece && board[r + 2][c + 2] === piece && board[r + 3][c + 3] === piece) {
-                        highlightWinningPieces([[r, c], [r + 1, c + 1], [r + 2, c + 2], [r + 3, c + 3]]);
-                        return true;
-                    }
-                }
-            }
-            // Negative Diagonal
-            for (let r = 3; r < ROWS; r++) {
-                for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] === piece && board[r - 1][c + 1] === piece && board[r - 2][c + 2] === piece && board[r - 3][c + 3] === piece) {
-                        highlightWinningPieces([[r, c], [r - 1, c + 1], [r - 2, c + 2], [r - 3, c + 3]]);
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        function checkDraw() {
-            return board[0].every(cell => cell !== 0);
-        }
-
-        function highlightWinningPieces(pieces) {
-            pieces.forEach(([r, c]) => {
-                const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
-                cell.classList.add('winning-piece');
-            });
-        }
-
-        function dropConfetti() {
-            for (let i = 0; i < 100; i++) {
-                const confetti = document.createElement('div');
-                confetti.classList.add('confetti');
-                confetti.style.left = `${Math.random() * 100}vw`;
-                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 2000);
-            }
-        }
-
-        function endGame(msg) {
-            gameActive = false;
-            message.textContent = msg;
-            resetBtn.style.display = 'inline-block';
-            if (msg.includes("win")) {
-                dropConfetti();
-            }
-        } function startGame(isAIFirst) {
-            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-            createBoard();
-            resetBtn.style.display = 'none';
-            message.textContent = '';
-            currentPlayer = FIRST_PLAYER; // Always start with player 1
-            isAIPlayer = isAIFirst; // Track if AI is the current player
-            if (isAIFirst) {
-                message.textContent = "AI's turn";
-                gameActive = true; // Enable game state for AI's first move
-                setTimeout(() => {
-                    aiMove();
-                }, 500);
-            } else {
-                message.textContent = "Your turn";
-                gameActive = true; // Enable game state for player's first move
-            }
-        }
-
-        resetBtn.addEventListener('click', () => {
-            const startModal = document.getElementById('start-modal');
-            startModal.style.display = 'flex';
-            resetBtn.style.display = 'none';
-            message.textContent = '';
-            createBoard();
-        });        // Modal button handlers
-        document.getElementById('modal-player-first').addEventListener('click', () => {
-            document.getElementById('start-modal').style.display = 'none';
-            startGame(false); // Player goes first
-        });
-
-        document.getElementById('modal-ai-first').addEventListener('click', () => {
-            document.getElementById('start-modal').style.display = 'none';
-            startGame(true);  // AI goes first
-        });
-
-        createBoard();
-
-        // Show modal on initial load
-        document.getElementById('start-modal').style.display = 'flex';
-
-        // --- AI Logic (Translated from Python) ---
-        const transpositionTable = new Map();
-        const MAX_TABLE_SIZE = 100000; // Limit table size to prevent memory issues
-
-        function clearTranspositionTable() {
-            transpositionTable.clear();
-        }
-
-        function getBoardHash(board) {
-            return board.map(row => row.join('')).join('');
-        }
-
-        function addToTranspositionTable(key, entry) {
-            if (transpositionTable.size >= MAX_TABLE_SIZE) {
-                // Clear oldest entries (simple strategy)
-                const keysToDelete = Array.from(transpositionTable.keys()).slice(0, MAX_TABLE_SIZE / 2);
-                keysToDelete.forEach(k => transpositionTable.delete(k));
-            }
-            transpositionTable.set(key, entry);
-        }
-
-        function count_nb(arr, value) {
-            return arr.reduce((count, x) => count + (x === value), 0);
-        }
-
-        function value_fn(board, player) {
-            const opp_player = player === 1 ? 2 : 1;
-            return _value_fn(board, player) - 5 * _value_fn(board, opp_player);
-        }
-
-        function _value_fn(board, player) {
-            let score = 0;
-            score += 101 * count_nb(board.map(row => row[3]), player);
-            for (let r = 0; r < ROWS; r++) {
-                const row_array = board[r];
-                for (let c = 0; c < COLS - 3; c++) {
-                    const window = row_array.slice(c, c + 4);
-                    score += evaluate_row(window, player, r);
-                }
-            }
-            for (let c = 0; c < COLS; c++) {
-                const col_array = board.map(row => row[c]);
-                for (let r = 0; r < ROWS - 3; r++) {
-                    const window = col_array.slice(r, r + 4);
-                    score += evaluate_column(window, player);
-                }
-            }
-            for (let r = 0; r < ROWS - 3; r++) {
-                for (let c = 0; c < COLS - 3; c++) {
-                    const window = [board[r][c], board[r + 1][c + 1], board[r + 2][c + 2], board[r + 3][c + 3]];
-                    score += evaluate_diagonal(window, player, r);
-                }
-            }
-            for (let r = 0; r < ROWS - 3; r++) {
-                for (let c = 0; c < COLS - 3; c++) {
-                    const window = [board[r + 3][c], board[r + 2][c + 1], board[r + 1][c + 2], board[r][c + 3]];
-                    score += evaluate_diagonal(window, player, r);
-                }
-            }
-            return score;
-        }
-
-        function evaluate_diagonal(window, player, r) {
-            let score = 0;
-            const inverse_row = 7 - r;
-            score += inverse_row;
-            if (count_nb(window, player) === 4) score += 10000;
-            else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
-            else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
-            return score;
-        }        
+    <div class="game-container">
+        <h1>🔴 Connect 4 🟡</h1>
         
-        function evaluate_row(window, player, r) {
-            let score = 0;
-            const inverse_row = 7 - r;
-            score += inverse_row;
-            // Convert 0-indexed row to 1-indexed for strategy application
-            const row_1_indexed = r + 1;
-            // First player (1) prefers odd-numbered rows in 1-indexed terms
-            if (player === FIRST_PLAYER && row_1_indexed % 2 !== 0) score += 10;
-            // Second player (2) prefers even-numbered rows in 1-indexed terms
-            if (player === SECOND_PLAYER && row_1_indexed % 2 === 0) score += 10;
-            if (count_nb(window, player) === 4) score += 10000;
-            else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
-            else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
-            return score;
-        }
+        <div class="controls">
+            <div class="control-group">
+                <label for="difficulty">AI Difficulty:</label>
+                <select id="difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="firstPlayer">First Player:</label>
+                <select id="firstPlayer">
+                    <option value="human">You</option>
+                    <option value="ai">Computer</option>
+                </select>
+            </div>
+            
+            <button onclick="newGame()">New Game</button>
+        </div>
 
-        function evaluate_column(window, player) {
-            let score = 0;
-            if (count_nb(window, player) === 4) score += 10000;
-            else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
-            else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
-            return 0.5 * score;
-        }
+        <div class="game-status" id="gameStatus">
+            Choose your settings and click "New Game" to start!
+        </div>
 
-        function get_valid_actions(board) {
-            const valid_cols = [];
-            for (let c = 0; c < COLS; c++) {
-                if (board[0][c] === 0) {
-                    valid_cols.push(c);
+        <div class="board" id="board"></div>
+
+        <button class="reset-button" onclick="newGame()">Reset Game</button>
+    </div>
+
+    <script>
+        class Connect4Game {
+            constructor() {
+                this.board = Array(6).fill().map(() => Array(7).fill(0));
+                this.currentPlayer = 1; // 1 = human (red), 2 = AI (yellow)
+                this.gameOver = false;
+                this.difficulty = 'medium';
+                this.humanStarts = true;
+                this.winningCells = [];
+                this.initializeBoard();
+            }
+
+            initializeBoard() {
+                const boardElement = document.getElementById('board');
+                boardElement.innerHTML = '';
+                
+                for (let row = 0; row < 6; row++) {
+                    for (let col = 0; col < 7; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        cell.addEventListener('click', () => this.handleCellClick(col));
+                        
+                        const indicator = document.createElement('div');
+                        indicator.className = 'column-indicator';
+                        cell.appendChild(indicator);
+                        
+                        boardElement.appendChild(cell);
+                    }
                 }
             }
-            return valid_cols;
-        }
 
-        function orderMoves(board, validMoves, piece) {
-            // Score each move and sort by most promising first
-            const moveScores = validMoves.map(col => {
-                const row = getNextOpenRow(col);
-                if (row === null) return { col, score: -Infinity };
+            handleCellClick(col) {
+                if (this.gameOver || this.currentPlayer === 2) return;
+                this.makeMove(col);
+            }
+
+            makeMove(col) {
+                const row = this.getLowestEmptyRow(col);
+                if (row === -1) return false;
+
+                this.board[row][col] = this.currentPlayer;
+                this.animatePieceDrop(row, col, this.currentPlayer);
+
+                if (this.checkWin(row, col)) {
+                    this.gameOver = true;
+                    this.highlightWinningCells();
+                    this.updateStatus(`${this.currentPlayer === 1 ? 'You' : 'Computer'} win! 🎉`);
+                } else if (this.isBoardFull()) {
+                    this.gameOver = true;
+                    this.updateStatus("It's a draw! 🤝");
+                } else {
+                    this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+                    this.updateStatus();
+                    
+                    if (this.currentPlayer === 2) {
+                        setTimeout(() => this.makeAIMove(), 500);
+                    }
+                }
+
+                return true;
+            }
+
+            getLowestEmptyRow(col) {
+                for (let row = 5; row >= 0; row--) {
+                    if (this.board[row][col] === 0) {
+                        return row;
+                    }
+                }
+                return -1;
+            }
+
+            animatePieceDrop(row, col, player) {
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                const piece = document.createElement('div');
+                piece.className = `piece ${player === 1 ? 'red' : 'yellow'} dropping`;
+                cell.appendChild(piece);
+
+                setTimeout(() => {
+                    piece.classList.remove('dropping');
+                }, 600);
+            }
+
+            checkWin(row, col) {
+                const player = this.board[row][col];
+                const directions = [
+                    [0, 1],   // horizontal
+                    [1, 0],   // vertical
+                    [1, 1],   // diagonal /
+                    [1, -1]   // diagonal \
+                ];
+
+                for (const [dx, dy] of directions) {
+                    let count = 1;
+                    const winCells = [[row, col]];
+
+                    // Check positive direction
+                    for (let i = 1; i < 4; i++) {
+                        const newRow = row + dx * i;
+                        const newCol = col + dy * i;
+                        if (this.isValidPosition(newRow, newCol) && this.board[newRow][newCol] === player) {
+                            count++;
+                            winCells.push([newRow, newCol]);
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Check negative direction
+                    for (let i = 1; i < 4; i++) {
+                        const newRow = row - dx * i;
+                        const newCol = col - dy * i;
+                        if (this.isValidPosition(newRow, newCol) && this.board[newRow][newCol] === player) {
+                            count++;
+                            winCells.push([newRow, newCol]);
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if (count >= 4) {
+                        this.winningCells = winCells;
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            isValidPosition(row, col) {
+                return row >= 0 && row < 6 && col >= 0 && col < 7;
+            }
+
+            isBoardFull() {
+                return this.board[0].every(cell => cell !== 0);
+            }
+
+            highlightWinningCells() {
+                this.winningCells.forEach(([row, col]) => {
+                    const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                    const piece = cell.querySelector('.piece');
+                    if (piece) {
+                        piece.classList.add('winning-piece');
+                    }
+                });
+            }
+
+            makeAIMove() {
+                if (this.gameOver) return;
+
+                let col;
+                switch (this.difficulty) {
+                    case 'easy':
+                        col = this.getRandomMove();
+                        break;
+                    case 'medium':
+                        col = this.getMediumMove();
+                        break;
+                    case 'hard':
+                        col = this.getHardMove();
+                        break;
+                }
+
+                if (col !== -1) {
+                    this.makeMove(col);
+                }
+            }
+
+            getRandomMove() {
+                const validCols = [];
+                for (let col = 0; col < 7; col++) {
+                    if (this.getLowestEmptyRow(col) !== -1) {
+                        validCols.push(col);
+                    }
+                }
+                return validCols.length > 0 ? validCols[Math.floor(Math.random() * validCols.length)] : -1;
+            }
+
+            getMediumMove() {
+                // Try to win
+                for (let col = 0; col < 7; col++) {
+                    if (this.canWin(col, 2)) {
+                        return col;
+                    }
+                }
+
+                // Block opponent win
+                for (let col = 0; col < 7; col++) {
+                    if (this.canWin(col, 1)) {
+                        return col;
+                    }
+                }
 
                 // Prefer center columns
-                let score = Math.abs(3 - col) * -10;
-
-                // Try the move
-                board[row][col] = piece;
-                score += value_fn(board, piece);
-                board[row][col] = 0; // Undo
-
-                return { col, score };
-            });
-
-            return moveScores.sort((a, b) => b.score - a.score).map(m => m.col);
-        }
-
-        function drop_piece_sim(board, col, mark) {
-            for (let r = ROWS - 1; r >= 0; r--) {
-                if (board[r][col] === 0) {
-                    board[r][col] = mark;
-                    return [r, col]; // Return position for backtracking
-                }
-            }
-            return null;
-        }
-
-        function undo_move(board, position) {
-            if (position) {
-                const [row, col] = position;
-                board[row][col] = 0;
-            }
-        }
-
-        function check_winner_sim(board) {
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] !== 0 && board[r][c] === board[r][c + 1] && board[r][c] === board[r][c + 2] && board[r][c] === board[r][c + 3]) return board[r][c];
-                }
-            }
-            for (let c = 0; c < COLS; c++) {
-                for (let r = 0; r <= ROWS - 4; r++) {
-                    if (board[r][c] !== 0 && board[r][c] === board[r + 1][c] && board[r][c] === board[r + 2][c] && board[r][c] === board[r + 3][c]) return board[r][c];
-                }
-            }
-            for (let r = 0; r <= ROWS - 4; r++) {
-                for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] !== 0 && board[r][c] === board[r + 1][c + 1] && board[r][c] === board[r + 2][c + 2] && board[r][c] === board[r + 3][c + 3]) return board[r][c];
-                }
-            }
-            for (let r = 3; r < ROWS; r++) {
-                for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] !== 0 && board[r][c] === board[r - 1][c + 1] && board[r][c] === board[r - 2][c + 2] && board[r][c] === board[r - 3][c + 3]) return board[r][c];
-                }
-            }
-            if (board[0].every(cell => cell !== 0)) return -1;
-            return 0;
-        }
-
-        function alphabeta(node, depth, alpha, beta, max_player, player, ai_player) {
-            // Check transposition table
-            const boardHash = getBoardHash(node);
-            const tableKey = `${boardHash}-${depth}-${max_player}`;
-            
-            if (transpositionTable.has(tableKey)) {
-                const cached = transpositionTable.get(tableKey);
-                if (cached.depth >= depth) {
-                    if (cached.type === 'exact') {
-                        return [cached.bestMove, cached.value];
-                    } else if (cached.type === 'lowerbound' && cached.value >= beta) {
-                        return [cached.bestMove, cached.value];
-                    } else if (cached.type === 'upperbound' && cached.value <= alpha) {
-                        return [cached.bestMove, cached.value];
+                const centerCols = [3, 2, 4, 1, 5, 0, 6];
+                for (const col of centerCols) {
+                    if (this.getLowestEmptyRow(col) !== -1) {
+                        return col;
                     }
                 }
+
+                return this.getRandomMove();
             }
 
-            const winner = check_winner_sim(node);
-            if (winner !== 0) {
-                const value = winner === ai_player ? 1000000000 + depth : 
-                            winner === player ? -1000000000 - depth : 0;
-                addToTranspositionTable(tableKey, {
-                    bestMove: null,
-                    value: value,
-                    depth: depth,
-                    type: 'exact'
-                });
-                return [null, value];
+            getHardMove() {
+                return this.minimax(4, 2, -Infinity, Infinity).col;
             }
-            if (depth === 0) {
-                const value = value_fn(node, ai_player);
-                addToTranspositionTable(tableKey, {
-                    bestMove: null,
-                    value: value,
-                    depth: depth,
-                    type: 'exact'
-                });
-                return [null, value];
-            }if (max_player) {
-                let best_value = -Infinity; let best_action = 3;
-                const valid_actions = get_valid_actions(node);
-                const ordered_moves = orderMoves(node, valid_actions, ai_player);
-                for (const action of ordered_moves) {
-                    const position = drop_piece_sim(node, action, ai_player);
-                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, false, player, ai_player);
-                    undo_move(node, position);
-                    if (score > best_value) {
-                        best_value = score;
-                        best_action = action;
+
+            canWin(col, player) {
+                const row = this.getLowestEmptyRow(col);
+                if (row === -1) return false;
+
+                this.board[row][col] = player;
+                const canWin = this.checkWin(row, col);
+                this.board[row][col] = 0;
+                return canWin;
+            }
+
+            minimax(depth, player, alpha, beta) {
+                const validCols = this.getValidColumns();
+                
+                if (depth === 0 || validCols.length === 0) {
+                    return { score: this.evaluateBoard(), col: -1 };
+                }
+
+                let bestCol = validCols[0];
+
+                if (player === 2) { // AI (maximizing)
+                    let maxScore = -Infinity;
+                    for (const col of validCols) {
+                        const row = this.getLowestEmptyRow(col);
+                        this.board[row][col] = player;
+                        
+                        if (this.checkWin(row, col)) {
+                            this.board[row][col] = 0;
+                            return { score: 1000, col };
+                        }
+                        
+                        const score = this.minimax(depth - 1, 1, alpha, beta).score;
+                        this.board[row][col] = 0;
+                        
+                        if (score > maxScore) {
+                            maxScore = score;
+                            bestCol = col;
+                        }
+                        
+                        alpha = Math.max(alpha, score);
+                        if (beta <= alpha) break;
                     }
-                    alpha = Math.max(alpha, best_value);                if (alpha >= beta) {
-                        addToTranspositionTable(tableKey, {
-                            bestMove: best_action,
-                            value: best_value,
-                            depth: depth,
-                            type: 'lowerbound'
-                        });
-                        break; // Prune
+                    return { score: maxScore, col: bestCol };
+                } else { // Human (minimizing)
+                    let minScore = Infinity;
+                    for (const col of validCols) {
+                        const row = this.getLowestEmptyRow(col);
+                        this.board[row][col] = player;
+                        
+                        if (this.checkWin(row, col)) {
+                            this.board[row][col] = 0;
+                            return { score: -1000, col };
+                        }
+                        
+                        const score = this.minimax(depth - 1, 2, alpha, beta).score;
+                        this.board[row][col] = 0;
+                        
+                        if (score < minScore) {
+                            minScore = score;
+                            bestCol = col;
+                        }
+                        
+                        beta = Math.min(beta, score);
+                        if (beta <= alpha) break;
+                    }
+                    return { score: minScore, col: bestCol };
+                }
+            }
+
+            getValidColumns() {
+                const validCols = [];
+                for (let col = 0; col < 7; col++) {
+                    if (this.getLowestEmptyRow(col) !== -1) {
+                        validCols.push(col);
+                    }
+                }
+                return validCols;
+            }
+
+            evaluateBoard() {
+                let score = 0;
+                
+                // Center column preference
+                for (let row = 0; row < 6; row++) {
+                    if (this.board[row][3] === 2) score += 3;
+                    if (this.board[row][3] === 1) score -= 3;
+                }
+                
+                // Evaluate all possible 4-in-a-row positions
+                for (let row = 0; row < 6; row++) {
+                    for (let col = 0; col < 7; col++) {
+                        // Horizontal
+                        if (col <= 3) {
+                            score += this.evaluateWindow([
+                                this.board[row][col],
+                                this.board[row][col + 1],
+                                this.board[row][col + 2],
+                                this.board[row][col + 3]
+                            ]);
+                        }
+                        
+                        // Vertical
+                        if (row <= 2) {
+                            score += this.evaluateWindow([
+                                this.board[row][col],
+                                this.board[row + 1][col],
+                                this.board[row + 2][col],
+                                this.board[row + 3][col]
+                            ]);
+                        }
+                        
+                        // Diagonal /
+                        if (row <= 2 && col <= 3) {
+                            score += this.evaluateWindow([
+                                this.board[row][col],
+                                this.board[row + 1][col + 1],
+                                this.board[row + 2][col + 2],
+                                this.board[row + 3][col + 3]
+                            ]);
+                        }
+                        
+                        // Diagonal \
+                        if (row >= 3 && col <= 3) {
+                            score += this.evaluateWindow([
+                                this.board[row][col],
+                                this.board[row - 1][col + 1],
+                                this.board[row - 2][col + 2],
+                                this.board[row - 3][col + 3]
+                            ]);
+                        }
                     }
                 }
                 
-                // Store the final result
-                addToTranspositionTable(tableKey, {
-                    bestMove: best_action,
-                    value: best_value,
-                    depth: depth,
-                    type: best_value <= alpha ? 'upperbound' : 
-                          best_value >= beta ? 'lowerbound' : 'exact'
-                });
-                return [best_action, best_value];
-            } else {
-                let worst_value = Infinity; let worst_action = 3;
-                const valid_actions = get_valid_actions(node);
-                const ordered_moves = orderMoves(node, valid_actions, player);
-                for (const action of ordered_moves) {
-                    const position = drop_piece_sim(node, action, player);
-                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, true, player, ai_player);
-                    undo_move(node, position);
-                    if (score < worst_value) {
-                        worst_value = score;
-                        worst_action = action;
-                    }
-                    beta = Math.min(beta, worst_value);
-                    if (beta <= alpha) break; // Prune
+                return score;
+            }
+
+            evaluateWindow(window) {
+                let score = 0;
+                const aiCount = window.filter(cell => cell === 2).length;
+                const humanCount = window.filter(cell => cell === 1).length;
+                const emptyCount = window.filter(cell => cell === 0).length;
+
+                if (aiCount === 4) score += 100;
+                else if (aiCount === 3 && emptyCount === 1) score += 10;
+                else if (aiCount === 2 && emptyCount === 2) score += 2;
+
+                if (humanCount === 4) score -= 100;
+                else if (humanCount === 3 && emptyCount === 1) score -= 80;
+                else if (humanCount === 2 && emptyCount === 2) score -= 2;
+
+                return score;
+            }
+
+            updateStatus(message = null) {
+                const statusElement = document.getElementById('gameStatus');
+                if (message) {
+                    statusElement.textContent = message;
+                } else if (this.gameOver) {
+                    statusElement.textContent = "Game Over";
+                } else {
+                    const playerName = this.currentPlayer === 1 ? 'Your' : "Computer's";
+                    const playerClass = this.currentPlayer === 1 ? 'player-red' : 'player-yellow';
+                    statusElement.innerHTML = `<span class="${playerClass}">${playerName} turn</span>`;
                 }
-                return [worst_action, worst_value];
+            }
+
+            newGame() {
+                this.board = Array(6).fill().map(() => Array(7).fill(0));
+                this.gameOver = false;
+                this.winningCells = [];
+                this.difficulty = document.getElementById('difficulty').value;
+                this.humanStarts = document.getElementById('firstPlayer').value === 'human';
+                this.currentPlayer = this.humanStarts ? 1 : 2;
+                
+                this.initializeBoard();
+                this.updateStatus();
+                
+                if (this.currentPlayer === 2) {
+                    setTimeout(() => this.makeAIMove(), 500);
+                }
             }
         }
 
-        function animateDrop(col, targetRow, piece, fromRow, callback) {
-            // Find the target cell for the destination
-            const targetCell = gameBoard.querySelector(`[data-row='${targetRow}'][data-col='${col}']`);
-            const cellSample = gameBoard.querySelector('.cell');
-            const cellWidth = cellSample.offsetWidth;
-            const cellHeight = cellSample.offsetHeight;
-            let startRow = fromRow;
-            if (startRow === undefined || startRow === null) startRow = 0;
-            // Calculate left/top relative to the board using offsetLeft/offsetTop
-            const left = targetCell.offsetLeft;
-            const endTop = targetCell.offsetTop;
-            // For startTop, use the offsetTop of the cell in the same column at startRow
-            let startTop = 0;
-            if (startRow !== targetRow) {
-                const startCell = gameBoard.querySelector(`[data-row='${startRow}'][data-col='${col}']`);
-                if (startCell) startTop = startCell.offsetTop;
-            } else {
-                startTop = endTop;
-            }            const tempPiece = document.createElement('div');
-            tempPiece.className = 'cell ' + (piece === FIRST_PLAYER ? 'player1' : 'player2');
-            tempPiece.style.position = 'absolute';
-            tempPiece.style.left = `${left}px`;
-            tempPiece.style.top = `${startTop}px`;
-            tempPiece.style.width = `${cellWidth}px`;
-            tempPiece.style.height = `${cellHeight}px`;
-            tempPiece.style.pointerEvents = 'none';
-            tempPiece.style.zIndex = 2000;
-            gameBoard.appendChild(tempPiece); const duration = getDropDuration(startRow, targetRow);
-            tempPiece.animate([
-                { top: `${startTop}px` },
-                { top: `${endTop}px` }
-            ], {
-                duration: duration,
-                easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Smooth out the animation
-                fill: 'forwards'
-            });
-            // Ensure animation completes even if there's a slight browser timing discrepancy
-            setTimeout(() => {
-                gameBoard.removeChild(tempPiece);
-                dropPiece(targetRow, col, piece);
-                if (callback) callback();
-            }, duration + 50);
+        let game;
+
+        function newGame() {
+            game = new Connect4Game();
+            game.newGame();
         }
 
-        function getDropDuration(startRow, targetRow) {
-            return 250 + 60 * Math.abs(targetRow - startRow); // Base duration + additional time per row
-        }
+        // Initialize the game when the page loads
+        window.addEventListener('load', () => {
+            newGame();
+        });
     </script>
 </body>
-
 </html>
