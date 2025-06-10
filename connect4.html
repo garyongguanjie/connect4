@@ -508,7 +508,9 @@
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
             return score;
-        }        function evaluate_row(window, player, r) {
+        }        
+        
+        function evaluate_row(window, player, r) {
             let score = 0;
             const inverse_row = 7 - r;
             score += inverse_row;
