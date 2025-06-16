@@ -81,6 +81,27 @@
         .winning-piece {
             border: calc(var(--board-width) * 0.009) solid #32cd32;
             box-sizing: border-box;
+            animation: green-cycle 2s ease-in-out infinite;
+            box-shadow: 0 0 calc(var(--board-width) * 0.02) rgba(50, 205, 50, 0.6);
+        }
+
+        @keyframes green-cycle {
+            0% {
+                border-color: #90EE90;
+                box-shadow: 0 0 calc(var(--board-width) * 0.02) rgba(144, 238, 144, 0.6);
+            }
+            33% {
+                border-color: #32CD32;
+                box-shadow: 0 0 calc(var(--board-width) * 0.02) rgba(50, 205, 50, 0.6);
+            }
+            66% {
+                border-color: #228B22;
+                box-shadow: 0 0 calc(var(--board-width) * 0.02) rgba(34, 139, 34, 0.6);
+            }
+            100% {
+                border-color: #90EE90;
+                box-shadow: 0 0 calc(var(--board-width) * 0.02) rgba(144, 238, 144, 0.6);
+            }
         }
 
         #controls {
