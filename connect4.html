@@ -224,6 +224,51 @@
         .modal button {
             min-width: 120px;
         }
+
+        .board-dim-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            animation: dim-fade-in 1s ease-in-out forwards;
+            pointer-events: none;
+            border-radius: var(--radius-size);
+        }
+
+        .game-over-text {
+            color: white;
+            font-size: var(--font-large);
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            animation: text-fade-in 1.5s ease-in-out 0.5s forwards;
+        }
+
+        @keyframes dim-fade-in {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes text-fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 
@@ -424,18 +469,79 @@
             }, 2000 + (totalConfetti * 20)); // Wait for all confetti to finish
         }
 
+        function dimBoard() {
+            const overlay = document.createElement('div');
+            overlay.classList.add('board-dim-overlay');
+            
+            const gameOverText = document.createElement('div');
+            gameOverText.classList.add('game-over-text');
+            gameOverText.textContent = 'Game Over';
+            
+            overlay.appendChild(gameOverText);
+            gameBoard.appendChild(overlay);
+            
+            // Remove the overlay after animation completes
+            setTimeout(() => {
+                if (overlay.parentNode) {
+                    overlay.remove();
+                }
+            }, 3000); // Remove after 3 seconds
+        }
+
+        function removeAllConfetti() {
+            const confettiElements = document.querySelectorAll('.confetti');
+            confettiElements.forEach(confetti => confetti.remove());
+        }
+
+        function removeDimOverlay() {
+            const dimOverlay = document.querySelector('.board-dim-overlay');
+            if (dimOverlay) {
+                dimOverlay.remove();
+            }
+        }
+
+        function clearWinningHighlights() {
+            const winningPieces = document.querySelectorAll('.winning-piece');
+            winningPieces.forEach(piece => piece.classList.remove('winning-piece'));
+        }
+
+        function resetGameState() {
+            // Stop the game
+            gameActive = false;
+            
+            // Clear visual effects
+            removeAllConfetti();
+            removeDimOverlay();
+            clearWinningHighlights();
+            
+            // Reset game variables
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            currentPlayer = FIRST_PLAYER;
+            isAIPlayer = false;
+            
+            // Clear UI elements
+            message.textContent = '';
+            resetBtn.style.display = 'none';
+            
+            // Restore original overflow in case it was modified
+            document.body.style.overflow = '';
+        }
+
         function endGame(msg) {
             gameActive = false;
             message.textContent = msg;
             resetBtn.style.display = 'inline-block';
-            if (msg.includes("win")) {
+            
+            // Differentiate between player and AI wins
+            if (msg === "You win!") {
                 dropConfetti();
+            } else if (msg === "AI wins!") {
+                dimBoard();
             }
+            // No special effect for draws
         } function startGame(isAIFirst) {
-            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            resetGameState();
             createBoard();
-            resetBtn.style.display = 'none';
-            message.textContent = '';
             currentPlayer = FIRST_PLAYER; // Always start with player 1
             isAIPlayer = isAIFirst; // Track if AI is the current player
             if (isAIFirst) {
@@ -451,10 +557,9 @@
         }
 
         resetBtn.addEventListener('click', () => {
+            resetGameState();
             const startModal = document.getElementById('start-modal');
             startModal.style.display = 'flex';
-            resetBtn.style.display = 'none';
-            message.textContent = '';
             createBoard();
         });        // Modal button handlers
         document.getElementById('modal-player-first').addEventListener('click', () => {
