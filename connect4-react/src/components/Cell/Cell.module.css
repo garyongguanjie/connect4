@@ -1,0 +1,56 @@
+.cell {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  background-color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.cell:hover {
+  transform: scale(1.05);
+}
+
+.cell:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+.player1 {
+  background-color: #f55c47;
+}
+
+.player1:hover {
+  background-color: #e54a36;
+}
+
+.player2 {
+  background-color: #f8d568;
+}
+
+.player2:hover {
+  background-color: #f7cc4d;
+}
+
+.winning {
+  border: calc(var(--board-width, 600px) * 0.009) solid #32cd32;
+  box-sizing: border-box;
+  animation: pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    border-color: #32cd32;
+    box-shadow: 0 0 5px #32cd32;
+  }
+  to {
+    border-color: #228b22;
+    box-shadow: 0 0 15px #32cd32;
+  }
+}

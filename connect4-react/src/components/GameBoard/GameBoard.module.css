@@ -1,0 +1,42 @@
+.gameBoard {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  width: var(--board-width);
+  height: var(--board-height);
+  max-width: 900px;
+  max-height: 771px;
+  gap: var(--cell-gap);
+  background-color: #4a90e2;
+  border: var(--border-size) solid #4a90e2;
+  border-radius: var(--radius-size);
+  margin: 1vh auto;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* CSS Custom Properties for responsive design */
+:root {
+  --max-board-size: 900px;
+  --board-width: min(95vw, 80vh, var(--max-board-size));
+  --board-height: calc(var(--board-width) * 6 / 7);
+  --cell-gap: calc(var(--board-width) * 0.012);
+  --border-size: calc(var(--board-width) * 0.028);
+  --radius-size: calc(var(--board-width) * 0.028);
+  --font-large: calc(var(--board-width) * 0.045);
+  --font-medium: calc(var(--board-width) * 0.035);
+  --font-small: calc(var(--board-width) * 0.025);
+  --button-padding: calc(var(--board-width) * 0.03) calc(var(--board-width) * 0.06);
+}
+
+@media (max-width: 600px) {
+  :root {
+    --board-width: min(98vw, 98vh, var(--max-board-size));
+  }
+}
+
+@media (max-width: 400px) {
+  :root {
+    --board-width: min(100vw, 98vh, var(--max-board-size));
+  }
+}
