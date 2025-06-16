@@ -401,14 +401,27 @@
         }
 
         function dropConfetti() {
-            for (let i = 0; i < 100; i++) {
-                const confetti = document.createElement('div');
-                confetti.classList.add('confetti');
-                confetti.style.left = `${Math.random() * 100}vw`;
-                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 2000);
+            // Temporarily hide overflow to prevent scroll bars during confetti animation
+            const originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            
+            // Reduce number of confetti pieces and stagger their creation
+            const totalConfetti = 200; // Reduced from 100
+            for (let i = 0; i < totalConfetti; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti');
+                    confetti.style.left = `${Math.random() * 100}vw`;
+                    confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 2000);
+                }, i * 20); // Stagger creation by 20ms intervals
             }
+            
+            // Restore original overflow after all confetti animations complete
+            setTimeout(() => {
+                document.body.style.overflow = originalOverflow;
+            }, 2000 + (totalConfetti * 20)); // Wait for all confetti to finish
         }
 
         function endGame(msg) {
