@@ -641,8 +641,8 @@
 
         function evaluate_diagonal(window, player, r) {
             let score = 0;
-            const inverse_row = 7 - r;
-            score += inverse_row;
+            // Bonus for lower rows (more strategically sound)
+            score += r;
             if (count_nb(window, player) === 4) score += 10000;
             else if (count_nb(window, player) === 3 && count_nb(window, 0) === 1) score += 100;
             else if (count_nb(window, player) === 2 && count_nb(window, 0) === 2) score += 10;
@@ -651,8 +651,8 @@
         
         function evaluate_row(window, player, r) {
             let score = 0;
-            const inverse_row = 7 - r;
-            score += inverse_row;
+            // Bonus for lower rows (more strategically sound)
+            score += r;
             // Convert 0-indexed row to 1-indexed for strategy application
             const row_1_indexed = r + 1;
             // First player (1) prefers odd-numbered rows in 1-indexed terms
