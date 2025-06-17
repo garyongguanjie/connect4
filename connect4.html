@@ -285,7 +285,7 @@
     <h1>Connect 4</h1>
     <div id="controls">
         <label>AI Depth:</label>
-        <input type="number" id="search-depth" min="1" max="15" value="10" style="width: 50px;">
+        <input type="number" id="search-depth" min="1" max="15" value="12" style="width: 50px;">
         <button id="reset-game" style="display:none;">Reset Game</button>
     </div>
     <div id="message"></div>
@@ -296,6 +296,8 @@
         const FIRST_PLAYER = 1;  // Represents first player (regardless of human/AI)
         const SECOND_PLAYER = 2;  // Represents second player (regardless of human/AI)
         const MAX_DEPTH = 15; // Max depth for AI search
+        const NUM_PIECE_TYPES_ZOBRIST = 3; // 0: empty, 1: player1, 2: player2
+        let zobristTable;
         let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
         let currentPlayer;
         let isAIPlayer;  // Will be true if AI is the current player
@@ -355,9 +357,13 @@
             // Get user-defined depth
             const depthInput = document.getElementById('search-depth');
             const depth = Math.max(1, Math.min(MAX_DEPTH, parseInt(depthInput.value) || 5));
+
+            // Compute initial Zobrist hash for the current board state
+            const initialHash = computeInitialBoardHash(board);
+
             // Pass current and next player to alphabeta (regardless of who's AI/human)
             const [col, _] = alphabeta(board, depth, -Infinity, Infinity, true, 
-                currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER, currentPlayer);
+                currentPlayer === FIRST_PLAYER ? SECOND_PLAYER : FIRST_PLAYER, currentPlayer, initialHash);
             const row = getNextOpenRow(col);
             if (row !== null) {
                 animateDrop(col, row, currentPlayer, 0, () => {
@@ -581,13 +587,49 @@
         const transpositionTable = new Map();
         const MAX_TABLE_SIZE = 100000; // Limit table size to prevent memory issues
 
+        function initZobristTable() {
+            zobristTable = Array.from({ length: ROWS }, () =>
+                Array.from({ length: COLS }, () =>
+                    new Array(NUM_PIECE_TYPES_ZOBRIST).fill(0)
+                )
+            );
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    for (let p = 0; p < NUM_PIECE_TYPES_ZOBRIST; p++) {
+                        // Generate a random 32-bit integer
+                        zobristTable[r][c][p] = Math.floor(Math.random() * Math.pow(2, 32));
+                    }
+                }
+            }
+        }
+
+        function getPieceIndex(pieceValue) {
+            if (pieceValue === FIRST_PLAYER) return 1; // PLAYER1_PIECE_INDEX
+            if (pieceValue === SECOND_PLAYER) return 2; // PLAYER2_PIECE_INDEX
+            return 0; // EMPTY_PIECE_INDEX for 0
+        }
+
+        function computeInitialBoardHash(currentBoard) {
+            let hash = 0;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const pieceValue = currentBoard[r][c];
+                    const pieceTypeIndex = getPieceIndex(pieceValue);
+                    hash ^= zobristTable[r][c][pieceTypeIndex];
+                }
+            }
+            return hash;
+        }
+        
         function clearTranspositionTable() {
             transpositionTable.clear();
         }
 
-        function getBoardHash(board) {
-            return board.map(row => row.join('')).join('');
-        }
+        // Old getBoardHash is no longer needed for transposition table
+        // function getBoardHash(board) {
+        //     return board.map(row => row.join('')).join('');
+        // }
 
         function addToTranspositionTable(key, entry) {
             if (transpositionTable.size >= MAX_TABLE_SIZE) {
@@ -703,17 +745,19 @@
             return moveScores.sort((a, b) => b.score - a.score).map(m => m.col);
         }
 
-        function drop_piece_sim(board, col, mark) {
+        // Renamed to reflect it only modifies the board; hash is handled in alphabeta
+        function drop_piece_on_board_sim(board, col, mark) {
             for (let r = ROWS - 1; r >= 0; r--) {
                 if (board[r][col] === 0) {
                     board[r][col] = mark;
                     return [r, col]; // Return position for backtracking
                 }
             }
-            return null;
+            return null; // Should not happen if column is valid
         }
 
-        function undo_move(board, position) {
+        // Renamed to reflect it only modifies the board; hash is handled in alphabeta
+        function undo_move_on_board_sim(board, position) {
             if (position) {
                 const [row, col] = position;
                 board[row][col] = 0;
@@ -745,10 +789,11 @@
             return 0;
         }
 
-        function alphabeta(node, depth, alpha, beta, max_player, player, ai_player) {
+        function alphabeta(node, depth, alpha, beta, max_player, player, ai_player, currentHash) {
+            const originalHashForNode = currentHash; // Hash for the current board state node
+
             // Check transposition table
-            const boardHash = getBoardHash(node);
-            const tableKey = `${boardHash}-${depth}-${max_player}`;
+            const tableKey = `${originalHashForNode}-${depth}-${max_player}`;
             
             if (transpositionTable.has(tableKey)) {
                 const cached = transpositionTable.get(tableKey);
@@ -777,27 +822,45 @@
             }
             if (depth === 0) {
                 const value = value_fn(node, ai_player);
-                addToTranspositionTable(tableKey, {
+                addToTranspositionTable(tableKey, { // Use originalHashForNode's tableKey
                     bestMove: null,
                     value: value,
                     depth: depth,
                     type: 'exact'
                 });
                 return [null, value];
-            }if (max_player) {
-                let best_value = -Infinity; let best_action = 3;
+            }
+            if (max_player) {
+                let best_value = -Infinity;
+                let best_action = (get_valid_actions(node)[0] !== undefined) ? get_valid_actions(node)[0] : 3; // Default if no valid actions
                 const valid_actions = get_valid_actions(node);
+                if (valid_actions.length === 0) { // Should not happen if game not over
+                     return [best_action, value_fn(node, ai_player)];
+                }
+                if (best_action === undefined && valid_actions.length > 0) best_action = valid_actions[0];
+
+
                 const ordered_moves = orderMoves(node, valid_actions, ai_player);
                 for (const action of ordered_moves) {
-                    const position = drop_piece_sim(node, action, ai_player);
-                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, false, player, ai_player);
-                    undo_move(node, position);
+                    const position = drop_piece_on_board_sim(node, action, ai_player);
+                    if (!position) continue; // Should not happen with valid_actions
+                    const [row, col] = position;
+
+                    let newHash = originalHashForNode;
+                    newHash ^= zobristTable[row][col][getPieceIndex(0)]; // XOR out empty
+                    newHash ^= zobristTable[row][col][getPieceIndex(ai_player)]; // XOR in new piece
+                    
+                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, false, player, ai_player, newHash);
+                    
+                    undo_move_on_board_sim(node, position); // Board restored, hash will be originalHashForNode in next loop iter implicitly
+
                     if (score > best_value) {
                         best_value = score;
                         best_action = action;
                     }
-                    alpha = Math.max(alpha, best_value);                if (alpha >= beta) {
-                        addToTranspositionTable(tableKey, {
+                    alpha = Math.max(alpha, best_value);
+                    if (alpha >= beta) {
+                        addToTranspositionTable(tableKey, { // Use originalHashForNode's tableKey
                             bestMove: best_action,
                             value: best_value,
                             depth: depth,
@@ -807,30 +870,58 @@
                     }
                 }
                 
-                // Store the final result
-                addToTranspositionTable(tableKey, {
+                addToTranspositionTable(tableKey, { // Use originalHashForNode's tableKey
                     bestMove: best_action,
                     value: best_value,
                     depth: depth,
-                    type: best_value <= alpha ? 'upperbound' : 
-                          best_value >= beta ? 'lowerbound' : 'exact'
+                    type: best_value <= alpha ? 'upperbound' : (best_value >= beta ? 'lowerbound' : 'exact')
                 });
                 return [best_action, best_value];
-            } else {
-                let worst_value = Infinity; let worst_action = 3;
+            } else { // min_player (opponent)
+                let worst_value = Infinity;
+                let worst_action = (get_valid_actions(node)[0] !== undefined) ? get_valid_actions(node)[0] : 3;
                 const valid_actions = get_valid_actions(node);
-                const ordered_moves = orderMoves(node, valid_actions, player);
+                 if (valid_actions.length === 0) {
+                     return [worst_action, value_fn(node, ai_player)]; // ai_player perspective for eval
+                }
+                if (worst_action === undefined && valid_actions.length > 0) worst_action = valid_actions[0];
+
+
+                const ordered_moves = orderMoves(node, valid_actions, player); // Opponent's piece
                 for (const action of ordered_moves) {
-                    const position = drop_piece_sim(node, action, player);
-                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, true, player, ai_player);
-                    undo_move(node, position);
+                    const position = drop_piece_on_board_sim(node, action, player); // Opponent's piece
+                    if (!position) continue;
+                    const [row, col] = position;
+
+                    let newHash = originalHashForNode;
+                    newHash ^= zobristTable[row][col][getPieceIndex(0)]; // XOR out empty
+                    newHash ^= zobristTable[row][col][getPieceIndex(player)]; // XOR in opponent's piece
+
+                    let [_, score] = alphabeta(node, depth - 1, alpha, beta, true, player, ai_player, newHash);
+                    
+                    undo_move_on_board_sim(node, position);
+
                     if (score < worst_value) {
                         worst_value = score;
                         worst_action = action;
                     }
                     beta = Math.min(beta, worst_value);
-                    if (beta <= alpha) break; // Prune
+                    if (beta <= alpha) {
+                         addToTranspositionTable(tableKey, { // Use originalHashForNode's tableKey
+                            bestMove: worst_action,
+                            value: worst_value,
+                            depth: depth,
+                            type: 'upperbound' // If beta <= alpha, this is an upper bound for this node
+                        });
+                        break; // Prune
+                    }
                 }
+                 addToTranspositionTable(tableKey, { // Use originalHashForNode's tableKey
+                    bestMove: worst_action,
+                    value: worst_value,
+                    depth: depth,
+                    type: worst_value <= alpha ? 'upperbound' : (worst_value >= beta ? 'lowerbound' : 'exact')
+                });
                 return [worst_action, worst_value];
             }
         }
@@ -882,6 +973,9 @@
         function getDropDuration(startRow, targetRow) {
             return 250 + 60 * Math.abs(targetRow - startRow); // Base duration + additional time per row
         }
+
+        // Initialize Zobrist table on script load
+        initZobristTable();
     </script>
 </body>
 
